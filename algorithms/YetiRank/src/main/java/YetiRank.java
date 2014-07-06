@@ -1,14 +1,11 @@
 import Data.Query;
+import Models.Ensemble;
+import Models.ObliviousTree;
 import Optimization.TreeGrower;
 import Utils.FeatureSplitsStreamGenerator;
 import Utils.MedianGridSplits;
 import Utils.ParallelPrecompute;
-import com.spbsu.commons.math.vectors.Mx;
-import com.spbsu.ml.Trans;
-import com.spbsu.ml.func.Ensemble;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 
 /**
@@ -32,21 +29,22 @@ public class YetiRank {
     }
 
     public void fit(Query[] queries) {
-        List<Trans> weakModels = new ArrayList<Trans>(iterations);
+        ObliviousTree[] weakModels =new ObliviousTree[iterations];
         int features = queries[0].data.columns();
         FeatureSplitsStreamGenerator splitsGenerator = new MedianGridSplits(queries, maxLevels);
         for (int t = 0; t < iterations; t++) {
-            final Trans weakModel = (new TreeGrower(queries, splitsGenerator, maxDepth, features)).fit();
-            weakModels.add(weakModel);
+            final ObliviousTree weakModel = (new TreeGrower(queries, splitsGenerator, maxDepth, features)).fit();
+            weakModels[t] = weakModel;
             pool.invoke(new ParallelPrecompute(queries, 0, queries.length, weakModel, step));
         }
+
         ensemble = new Ensemble(weakModels, -step);
     }
 
-    public List<Mx> predict(Query[] queries) {
-        List<Mx> results = new ArrayList<>(queries.length);
-        for (Query query : queries) {
-            results.add(ensemble.transAll(query.data));
+    public double[][] predict(Query[] queries) {
+        double[][]  results = new double[queries.length][];
+        for (int q=0;q< queries.length;++q) {
+            results[q] = ensemble.predict(queries[q].data)[iterations-1];
         }
         return results;
     }
@@ -61,9 +59,9 @@ public class YetiRank {
 
     public double[] ndcg(Query query) {
         double[] result = new double[iterations];
-        Mx predictions = ensemble.transAll(query.data);
+        double[][] predictions = ensemble.predict(query.data);
         for (int i = 0; i < iterations; ++i) {
-            result[i] = query.ndcg(predictions.col(i).toArray());
+            result[i] = query.ndcg(predictions[i]);
         }
         return result;
     }

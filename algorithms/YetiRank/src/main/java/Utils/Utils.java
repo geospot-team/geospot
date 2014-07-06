@@ -123,4 +123,20 @@ public class Utils {
         return (pra - pre) / (1 - pre);
     }
 
+    public static int[] sample(int n) {
+        int[] result = new int[n];
+        for (int i=0;i<result.length;++i) {
+            result[i] = i;
+        }
+        shuffle(result);
+        return result;
+    }
+
+    public static void shuffle(int[] index) {
+        for (int i=index.length-1;i>0;--i) {
+            int j = random.nextInt(i+1);
+            swap(i,j,index);
+        }
+    }
+
 }

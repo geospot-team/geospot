@@ -18,6 +18,8 @@ import static java.lang.Math.pow;
  * Date: 03.07.14
  * Time: 0:09
  */
+
+//TODO: Mx implementation on double arrays (to save memory on queries)
 public class Query {
     public final Mx data;
     public final Vec target;
