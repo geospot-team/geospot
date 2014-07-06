@@ -48,18 +48,15 @@ public class TreeGrower {
 
 
     private Split calcScore(Split candidate) {
-        Mx M = new VecBasedMx(1 << (currentLevel+1), 1 << (currentLevel+1));
-        Vec v = new ArrayVec(1 << (currentLevel+1));
-
+        Mx M = new VecBasedMx(1 << (currentLevel + 1), 1 << (currentLevel + 1));
+        Vec v = new ArrayVec(1 << (currentLevel + 1));
         for (int q = 0; q < queries.length; ++q) {
-
             int bootstrapWeight = bootstrap ? rand.nextPoisson(1) : 1;
             if (bootstrapWeight == 0) continue;
-
             for (int i = 0; i < queries[q].rows; ++i) {
                 int newLeaf_i = queries[q].data.row(i).get(candidate.feature) > candidate.value ? currentLeaves[q][i] | 1 << currentLevel : currentLeaves[q][i];
                 v.set(newLeaf_i, v.get(newLeaf_i) + bootstrapWeight * queries[q].v[i]);
-                for (int j = i+1; j < queries[q].rows; ++j) {
+                for (int j = 0; j < queries[q].rows; ++j) {
                     int newLeaf_j = queries[q].data.row(j).get(candidate.feature) > candidate.value ? currentLeaves[q][j] | 1 << currentLevel : currentLeaves[q][j];
                     M.set(newLeaf_i, newLeaf_j, M.get(newLeaf_i, newLeaf_j) + bootstrapWeight * queries[q].M[i][j]);
                 }
@@ -71,14 +68,14 @@ public class TreeGrower {
     }
 
     private double[] calcLeaves() {
-        Mx M = new VecBasedMx(1 << (currentLevel+1), 1 << (currentLevel+1));
-        Vec v = new ArrayVec(1 << (currentLevel+1));
+        Mx M = new VecBasedMx(1 << (currentLevel + 1), 1 << (currentLevel + 1));
+        Vec v = new ArrayVec(1 << (currentLevel + 1));
 
         for (int q = 0; q < queries.length; ++q) {
             for (int i = 0; i < queries[q].rows; ++i) {
                 int newLeaf_i = currentLeaves[q][i];
                 v.set(newLeaf_i, v.get(newLeaf_i) + queries[q].v[i]);
-                for (int j = i+1; j < queries[q].rows; ++j) {
+                for (int j = 0; j < queries[q].rows; ++j) {
                     int newLeaf_j = currentLeaves[q][j];
                     M.set(newLeaf_i, newLeaf_j, M.get(newLeaf_i, newLeaf_j) + queries[q].M[i][j]);
                 }
@@ -107,7 +104,7 @@ public class TreeGrower {
             Split bestSplit = splitsGenerator.generateSplits()
                     .filter(splits -> !used[splits.feature])
                     .flatMap(splits -> splits.splits.parallelStream().map(this::calcScore))
-                    .min((first, second) -> first.score > second.score ? 1 : -1).get();
+                    .min((first, second) -> first.score < second.score ? -1 : 1).get();
 
             used[bestSplit.feature] = true;
             addSplit(bestSplit);

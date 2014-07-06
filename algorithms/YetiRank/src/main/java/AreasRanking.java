@@ -18,14 +18,14 @@ import static Utils.Utils.sample;
  * Time: 1:11
  */
 public class AreasRanking {
-    static int queriesCount = 20;
+    static int queriesCount = 300;
     static int cvCount = 100;
     static int testCount = 20;
-    static int areasPerQuery = 20;
+    static int areasPerQuery = 10;
     static String filename = "learn";
     static Random rand = new Random(10);
-    static int iterations = 150;
-    static double step = 1e-4;
+    static int iterations = 500;
+    static double step = 1e-1;
 
     public static void main(String[] args) {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "4");
@@ -73,19 +73,22 @@ public class AreasRanking {
     private static double[][] crossValidation(double[][] data, double[] ratings) {
         double[][] scores = new double[cvCount][];
         for (int cv = 0; cv < cvCount; ++cv) {
+            long startTime = System.currentTimeMillis();
+            System.out.println("Starting cv iteration");
             int[] index = sample(data.length);
             Query[] learn = makeLearn(data, ratings, index);
             Query test = makeTest(data, ratings, index);
             YetiRank model = new YetiRank(iterations, step);
             model.fit(learn);
             scores[cv] = model.ndcg(test);
+            System.out.println(String.format("CV iteration working time: %d\nFor cv iteration %d scores are %s\n",(System.currentTimeMillis() - startTime) / 1000,cv,mkString(scores[cv])));
         }
         return scores;
     }
 
     private static Query makeTest(double[][] data, double[] ratings, int[] index) {
-        Mx sample = new VecBasedMx(areasPerQuery, data[0].length);
-        Vec sampleRating = new ArrayVec(areasPerQuery);
+        Mx sample = new VecBasedMx(testCount, data[0].length);
+        Vec sampleRating = new ArrayVec(testCount);
 
         for (int k = 0; k < testCount; ++k) {
             int ind = index[index.length - testCount + k];

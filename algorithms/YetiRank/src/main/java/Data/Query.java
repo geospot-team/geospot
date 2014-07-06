@@ -10,6 +10,7 @@ import java.util.Arrays;
 
 import static Utils.Utils.argsort;
 import static Utils.Utils.rank;
+import static java.lang.Math.exp;
 import static java.lang.Math.pow;
 
 
@@ -47,6 +48,7 @@ public class Query {
         double[] targetArr = target.toArray();
         bestDCG = dcg(targetArr, targetArr, k);
         ranks = rank(targetArr);
+        precompute();
     }
 
 
@@ -58,13 +60,19 @@ public class Query {
     public void precompute(Trans weak, double step) {
         VecTools.append(currentPredictions, VecTools.scale(weak.transAll(data), -step));
         //clear
+        precompute();
+    }
+
+    private void precompute() {
         for (double[] row : M) Arrays.fill(row, 0);
         Arrays.fill(v, 0);
         //precompute
         for (int i = 0; i < M.length; ++i)
-            for (int j = i + 1; j < M.length; ++j) {
-                v[i] -= weights[i][j] / (Math.exp(currentPredictions.get(i) - currentPredictions.get(j)) + 1);
-                v[j] += weights[i][j] / (Math.exp(currentPredictions.get(i) - currentPredictions.get(j)) + 1);
+            for (int j = 0; j < M.length; ++j) {
+                if (weights[i][j] == 0)
+                    continue;
+                v[i] -= weights[i][j] / (exp(currentPredictions.get(i) - currentPredictions.get(j)) + 1);
+                v[j] += weights[i][j] / (exp(currentPredictions.get(i) - currentPredictions.get(j)) + 1);
                 M[i][i] += weights[i][j];
                 M[i][j] -= weights[i][j];
                 M[j][i] -= weights[i][j];
@@ -134,18 +142,20 @@ public class Query {
 
     public static double[][] ndcgWeights(double[] target, int k) {
         double[] ranks = rank(target);
-
         double bestDCG = dcgRanks(ranks, target, k);
         double totalWeight = 0;
         double[][] weights = new double[target.length][target.length];
         for (int i = 0; i < target.length; ++i) {
-            for (int j = i + 1; j < target.length; ++j) {
-                swap(i, j, target);
-                double diff = 1.0 - ndcgRanks(ranks, target, bestDCG, k);
-                swap(i, j, target);
-                weights[i][j] = 1.0 / Math.exp(diff);
-                weights[j][i] = -1.0 / Math.exp(diff);
-                totalWeight += weights[i][j];
+            for (int j = 0; j < target.length; ++j) {
+                if (target[i] < target[j]) {
+                    swap(i, j, target);
+                    double diff = 1.0 - ndcgRanks(ranks, target, bestDCG, k);
+                    swap(i, j, target);
+                    weights[i][j] = exp(-2 * diff);
+                    totalWeight += weights[i][j];
+                } else {
+                    weights[i][j] = 0;
+                }
             }
         }
         for (int i = 0; i < target.length; ++i)

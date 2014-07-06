@@ -31,8 +31,6 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
     private int[][] sortedIndex;
 
 
-
-
     public MedianGridSplits(Query[] queries, int binFactor) {
 
         this.binFactor = binFactor;
@@ -41,16 +39,16 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
         levels = new int[featuresCount];
 
         int documentsCount = 0;
-        for (Query query: queries) documentsCount += query.rows;
+        for (Query query : queries) documentsCount += query.rows;
 
         data = new double[featuresCount][documentsCount];
 
 
         int currentCol = 0;
 
-        for (Query query: queries) {
-            for (int j=0;j<query.rows;++j, ++currentCol) {
-                for (int featureInd=0;featureInd<featuresCount;++featureInd) {
+        for (Query query : queries) {
+            for (int j = 0; j < query.rows; ++j, ++currentCol) {
+                for (int featureInd = 0; featureInd < featuresCount; ++featureInd) {
                     data[featureInd][currentCol] = query.data.row(j).get(featureInd);
                 }
             }
@@ -62,15 +60,15 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
         }
 
         this.sortedIndex = new int[data.length][];
-        for (int i =0;i<data.length;++i) {
+        for (int i = 0; i < data.length; ++i) {
             this.sortedIndex[i] = argsort(i);
         }
 
         calcLevels();
 
-        for (int feature=0;feature<featuresCount;++feature) {
-            List<Split> featureSplits = new ArrayList<>(min(binFactor,levels[feature]));
-            splits.add(feature,new Splits(featureSplits,feature));
+        for (int feature = 0; feature < featuresCount; ++feature) {
+            List<Split> featureSplits = new ArrayList<>(min(binFactor, levels[feature]));
+            splits.add(feature, new Splits(featureSplits, feature));
         }
 
         calcSplits();
@@ -78,9 +76,9 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
     }
 
     private void calcSplits() {
-       for (int feature =0; feature < featuresCount;++feature) {
-           quantilize(feature);
-       }
+        for (int feature = 0; feature < featuresCount; ++feature) {
+            quantilize(feature);
+        }
     }
 
     private void quantilize(int feature) {
@@ -88,22 +86,22 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
         Splits featureSplits = splits.get(feature);
 
         if (levels[feature] < binFactor) {
-            Split current = new Split(feature,data[feature][order[0]],Integer.MAX_VALUE);
-            for (int i=1; i < data[feature].length;++i) {
-                if (data[feature][order[i]] != data[feature][order[i-1]]) {
+            Split current = new Split(feature, data[feature][order[0]], Integer.MAX_VALUE);
+            for (int i = 1; i < data[feature].length; ++i) {
+                if (data[feature][order[i]] != data[feature][order[i - 1]]) {
                     featureSplits.splits.add(current);
-                    current = new Split(feature,data[feature][order[i]],Integer.MAX_VALUE);
+                    current = new Split(feature, data[feature][order[i]], Integer.MAX_VALUE);
                 }
             }
         } else {
-        //binarize by median
-            double [] observations = new double[data[feature].length];
-            for (int i=0;i<observations.length;++i) {
+            //binarize by median
+            double[] observations = new double[data[feature].length];
+            for (int i = 0; i < observations.length; ++i) {
                 observations[i] = data[feature][order[i]];
             }
             double[] borders = calcBorders(observations);
-            for (double border: borders) {
-                featureSplits.splits.add(new Split(feature,border,Integer.MAX_VALUE));
+            for (double border : borders) {
+                featureSplits.splits.add(new Split(feature, border, Integer.MAX_VALUE));
             }
         }
     }
@@ -113,6 +111,7 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
     private double[] calcBorders(double[] feature) {
 
         TIntArrayList borders = new TIntArrayList();
+        borders.add(feature.length);
         while (borders.size() < binFactor + 1) {
             double bestScore = 0;
             int bestSplit = -1;
@@ -124,13 +123,14 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
 
                 while (split > 0 && Math.abs(feature[split] - median) < 1e-9) // look for first less then median value
                     split--;
-                if(Math.abs(feature[split] - median) > 1e-9) split++;
+                if (Math.abs(feature[split] - median) > 1e-9) split++;
                 final double scoreLeft = Math.log(end - split) + Math.log(split - start);
                 if (split > 0 && scoreLeft > bestScore) {
                     bestScore = scoreLeft;
                     bestSplit = split;
                 }
-                while (++split < end && Math.abs(feature[split] - median) < 1e-9); // first after elements with such value
+                while (++split < end && Math.abs(feature[split] - median) < 1e-9)
+                    ; // first after elements with such value
                 final double scoreRight = Math.log(end - split) + Math.log(split - start);
                 if (split < end && scoreRight > bestScore) {
                     bestScore = scoreRight;
@@ -143,8 +143,8 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
             borders.sort();
         }
 
-        double[] bordersValues = new double[borders.size()];
-        for (int i =0;i < borders.size();++i) {
+        double[] bordersValues = new double[borders.size() - 1];
+        for (int i = 0; i < borders.size() - 1; ++i) {
             bordersValues[i] = borders.get(i);
 
         }
@@ -154,20 +154,21 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
 
 
     private void calcLevels() {
-        for (int feature=0;feature<featuresCount;++feature) {
+        for (int feature = 0; feature < featuresCount; ++feature) {
             int differentValues = 1;
-            for (int i=1;i<data[feature].length;++i) {
-                if (data[feature][sortedIndex[feature][i]] != data[feature][sortedIndex[feature][i-1]]) differentValues++;
+            for (int i = 1; i < data[feature].length; ++i) {
+                if (data[feature][sortedIndex[feature][i]] != data[feature][sortedIndex[feature][i - 1]])
+                    differentValues++;
             }
             levels[feature] = differentValues;
         }
     }
 
-    private int max(int a,int b) {
+    private int max(int a, int b) {
         return a > b ? a : b;
     }
 
-    private int min(int a,int b) {
+    private int min(int a, int b) {
         return a < b ? a : b;
     }
 
@@ -188,9 +189,6 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
     }
 
 
-
-
-
     private void qsort(int i, int[] order, int left, int right) {
         int l = left;
         int r = right;
@@ -198,10 +196,10 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
             return;
         }
         if (r - l < 8) {
-            for (int j=l;j<=r;++j)  {
-                for (int k=j+1;k<=r;++k) {
+            for (int j = l; j <= r; ++j) {
+                for (int k = j + 1; k <= r; ++k) {
                     if (data[i][order[j]] > data[i][order[k]])
-                        swap(j,k,order);
+                        swap(j, k, order);
                 }
             }
             return;

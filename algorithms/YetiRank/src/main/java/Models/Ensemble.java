@@ -43,6 +43,5 @@ public class Ensemble {
             result[i] = result[i - 1] + weight * models[i].value(features);
         }
         return result;
-
     }
 }
