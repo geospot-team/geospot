@@ -8,6 +8,10 @@ import com.spbsu.ml.Trans;
 
 import java.util.Arrays;
 
+import static Utils.Utils.argsort;
+import static Utils.Utils.rank;
+import static java.lang.Math.pow;
+
 
 /**
  * User: Vasily
@@ -16,44 +20,144 @@ import java.util.Arrays;
  */
 public class Query {
     public final Mx data;
+    public final Vec target;
     public final double[][] weights;
     public final int rows;
+    public final int k = 10;
 
     //precomputed values
-    private Vec predictions;
+    private Vec currentPredictions;
+    private final double bestDCG;
+    private final double[] ranks;
+
     public double[][] M;
     public double[] v;
 
-    public Query(Mx data, double[][] weights) {
+    public Query(Mx data, Vec target, double[][] weights) {
         this.data = data;
         this.weights = weights;
+        this.target = target;
         M = new double[data.rows()][data.rows()];
         rows = data.rows();
         v = new double[data.rows()];
-        predictions = new ArrayVec(data.rows());
+        currentPredictions = new ArrayVec(data.rows());
+
+        double[] targetArr = target.toArray();
+        bestDCG = dcg(targetArr, targetArr, k);
+        ranks = rank(targetArr);
+    }
+
+
+    public Query(Mx data, Vec target) {
+        this(data, target, ndcgWeights(target.toArray()));
     }
 
 
     public void precompute(Trans weak, double step) {
-        VecTools.append(predictions,VecTools.scale(weak.transAll(data),-step));
-
+        VecTools.append(currentPredictions, VecTools.scale(weak.transAll(data), -step));
         //clear
         for (double[] row : M) Arrays.fill(row, 0);
-        Arrays.fill(v,0);
-
-
+        Arrays.fill(v, 0);
         //precompute
-        for (int i=0;i<M.length;++i)
-            for (int j=0;j<M.length;++j) {
-                if (i==j)
-                    continue;
-                v[i] -=  weights[i][j] / ( Math.exp(predictions.get(i) - predictions.get(j)) + 1);
-                v[j] += weights[i][j] / ( Math.exp(predictions.get(i) - predictions.get(j)) + 1);
-                M[i][i]  += weights[i][j];
+        for (int i = 0; i < M.length; ++i)
+            for (int j = i + 1; j < M.length; ++j) {
+                v[i] -= weights[i][j] / (Math.exp(currentPredictions.get(i) - currentPredictions.get(j)) + 1);
+                v[j] += weights[i][j] / (Math.exp(currentPredictions.get(i) - currentPredictions.get(j)) + 1);
+                M[i][i] += weights[i][j];
                 M[i][j] -= weights[i][j];
                 M[j][i] -= weights[i][j];
                 M[j][j] += weights[i][j];
             }
+    }
+
+
+    public double ndcg(double[] predictions) {
+        return dcg(predictions) / bestDCG;
+
+    }
+
+    public double dcg(double[] predictions) {
+        int[] predictionsOrder = argsort(predictions);
+        double[] relevance = new double[k];
+        for (int i = 0; i < relevance.length; ++i) {
+            relevance[i] = (ranks.length - ranks[predictionsOrder[i]] + 1) / ranks.length;
+        }
+        double result = 0;
+
+        for (int i = 0; i < relevance.length; ++i) {
+            result += (pow(2, relevance[i]) - 1) / Math.log(i + 2);
+        }
+        result *= Math.log(2);
+        return result;
+
+    }
+
+
+    public static double ndcg(double[] real, double[] predictions, int k) {
+        double best = dcg(real, real, k);
+        double pred = dcg(real, predictions, k);
+        return pred / best;
+    }
+
+
+    public static double dcg(double[] real, double[] predictions, int k) {
+        double[] ranks = rank(real);
+        return dcgRanks(ranks, predictions, k);
+    }
+
+    private static double dcgRanks(double[] ranks, double[] predictions, int k) {
+        int[] predictionsOrder = argsort(predictions);
+        double[] relevance = new double[k];
+        for (int i = 0; i < relevance.length; ++i) {
+            relevance[i] = (ranks.length - ranks[predictionsOrder[i]] + 1) / ranks.length;
+        }
+        double result = 0;
+
+        for (int i = 0; i < relevance.length; ++i) {
+            result += (pow(2, relevance[i]) - 1) / Math.log(i + 2);
+        }
+        result *= Math.log(2);
+        return result;
+    }
+
+    private static double ndcgRanks(double[] ranks, double[] predictions, double best, int k) {
+        double pred = dcgRanks(ranks, predictions, k);
+        return pred / best;
+    }
+
+
+    public static double[][] ndcgWeights(double[] target) {
+        return ndcgWeights(target, target.length);
+    }
+
+    public static double[][] ndcgWeights(double[] target, int k) {
+        double[] ranks = rank(target);
+
+        double bestDCG = dcgRanks(ranks, target, k);
+        double totalWeight = 0;
+        double[][] weights = new double[target.length][target.length];
+        for (int i = 0; i < target.length; ++i) {
+            for (int j = i + 1; j < target.length; ++j) {
+                swap(i, j, target);
+                double diff = 1.0 - ndcgRanks(ranks, target, bestDCG, k);
+                swap(i, j, target);
+                weights[i][j] = 1.0 / Math.exp(diff);
+                weights[j][i] = -1.0 / Math.exp(diff);
+                totalWeight += weights[i][j];
+            }
+        }
+        for (int i = 0; i < target.length; ++i)
+            for (int j = i + 1; j < target.length; ++j) {
+                weights[i][j] /= totalWeight;
+                weights[j][i] /= totalWeight;
+            }
+        return weights;
+    }
+
+    private static void swap(int i, int j, double[] target) {
+        double tmp = target[i];
+        target[i] = target[j];
+        target[j] = tmp;
     }
 
 }

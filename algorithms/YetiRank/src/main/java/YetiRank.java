@@ -50,4 +50,21 @@ public class YetiRank {
         }
         return results;
     }
+
+    public double[][] ndcg(Query[] queries) {
+        double[][] result = new double[queries.length][];
+        for (int i = 0; i < queries.length; ++i) {
+            result[i] = ndcg(queries[i]);
+        }
+        return result;
+    }
+
+    public double[] ndcg(Query query) {
+        double[] result = new double[iterations];
+        Mx predictions = ensemble.transAll(query.data);
+        for (int i = 0; i < iterations; ++i) {
+            result[i] = query.ndcg(predictions.col(i).toArray());
+        }
+        return result;
+    }
 }

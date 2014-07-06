@@ -59,7 +59,7 @@ public class TreeGrower {
             for (int i = 0; i < queries[q].rows; ++i) {
                 int newLeaf_i = queries[q].data.row(i).get(candidate.feature) > candidate.value ? currentLeaves[q][i] | 1 << currentLevel : currentLeaves[q][i];
                 v.set(newLeaf_i, v.get(newLeaf_i) + bootstrapWeight * queries[q].v[i]);
-                for (int j = 0; j < queries[q].rows; ++j) {
+                for (int j = i+1; j < queries[q].rows; ++j) {
                     int newLeaf_j = queries[q].data.row(j).get(candidate.feature) > candidate.value ? currentLeaves[q][j] | 1 << currentLevel : currentLeaves[q][j];
                     M.set(newLeaf_i, newLeaf_j, M.get(newLeaf_i, newLeaf_j) + bootstrapWeight * queries[q].M[i][j]);
                 }
@@ -78,7 +78,7 @@ public class TreeGrower {
             for (int i = 0; i < queries[q].rows; ++i) {
                 int newLeaf_i = currentLeaves[q][i];
                 v.set(newLeaf_i, v.get(newLeaf_i) + queries[q].v[i]);
-                for (int j = 0; j < queries[q].rows; ++j) {
+                for (int j = i+1; j < queries[q].rows; ++j) {
                     int newLeaf_j = currentLeaves[q][j];
                     M.set(newLeaf_i, newLeaf_j, M.get(newLeaf_i, newLeaf_j) + queries[q].M[i][j]);
                 }

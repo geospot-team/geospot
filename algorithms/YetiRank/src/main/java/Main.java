@@ -1,13 +1,17 @@
 import Data.Query;
 import Utils.FastScanner;
 import com.spbsu.commons.math.vectors.Mx;
+import com.spbsu.commons.math.vectors.Vec;
 import com.spbsu.commons.math.vectors.impl.mx.VecBasedMx;
+import com.spbsu.commons.math.vectors.impl.vectors.ArrayVec;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
+
+import static Utils.Utils.mkString;
 
 /**
  * User: Vasily
@@ -51,15 +55,8 @@ public class Main {
 
     }
 
-    private static String mkString(double[] arr) {
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < arr.length - 1; ++i) {
-            builder.append(arr[i]);
-            builder.append(" ");
-        }
-        builder.append(arr[arr.length - 1]);
-        return builder.toString();
-    }
+
+
 
     private static Query[] readQueries(String filename) {
         FastScanner scanner = new FastScanner(new File(filename));
@@ -69,16 +66,18 @@ public class Main {
         for (int q = 0; q < queriesCount; ++q) {
             int documentsCount = scanner.nextInt();
             Mx data = new VecBasedMx(documentsCount, featuresCount);
+            Vec target = new ArrayVec(documentsCount);
             for (int i = 0; i < documentsCount; ++i) {
                 for (int j = 0; j < featuresCount; ++j) {
                     data.set(i, j, scanner.nextDouble());
                 }
+                target.set(i,scanner.nextDouble());
             }
             double[][] weights = new double[documentsCount][documentsCount];
             for (int i = 0; i < documentsCount; ++i)
                 for (int j = 0; j < documentsCount; ++j)
                     weights[i][j] = scanner.nextDouble();
-            queries[q] = new Query(data, weights);
+            queries[q] = new Query(data, target,weights);
         }
         return queries;
     }
