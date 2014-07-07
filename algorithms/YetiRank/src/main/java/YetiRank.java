@@ -38,7 +38,7 @@ public class YetiRank {
             pool.invoke(new ParallelPrecompute(queries, 0, queries.length, weakModel, step));
         }
 
-        ensemble = new Ensemble(weakModels, -step);
+        ensemble = new Ensemble(weakModels, step);
     }
 
     public double[][] predict(Query[] queries) {

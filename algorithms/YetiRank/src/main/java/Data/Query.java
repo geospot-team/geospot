@@ -58,12 +58,12 @@ public class Query {
 
 
     public void precompute(Trans weak, double step) {
-        VecTools.append(currentPredictions, VecTools.scale(weak.transAll(data), -step));
-        //clear
+        VecTools.append(currentPredictions, VecTools.scale(weak.transAll(data), step));
         precompute();
     }
 
     private void precompute() {
+        //clear
         for (double[] row : M) Arrays.fill(row, 0);
         Arrays.fill(v, 0);
         //precompute
@@ -140,10 +140,33 @@ public class Query {
         return ndcgWeights(target, target.length);
     }
 
+    public static double[][] diffWeight(double[] target) {
+        double totalWeight = 0;
+
+        double[][] weights = new double[target.length][target.length];
+        for (int i = 0; i < target.length; ++i) {
+            for (int j = 0; j < target.length; ++j) {
+                if (target[i] < target[j]) {
+                    weights[i][j] = (target[j] - target[i]);
+                    totalWeight += weights[i][j];//target[j] - target[i];
+
+                } else {
+                    weights[i][j] = 0;
+                }
+            }
+        }
+        for (int i=0;i<target.length;++i)
+            for (int j=i+1;j<target.length;++j) {
+                weights[i][j] /= totalWeight;
+                weights[j][i] /= totalWeight;
+            }
+        return weights;
+    }
     public static double[][] ndcgWeights(double[] target, int k) {
         double[] ranks = rank(target);
         double bestDCG = dcgRanks(ranks, target, k);
         double totalWeight = 0;
+
         double[][] weights = new double[target.length][target.length];
         for (int i = 0; i < target.length; ++i) {
             for (int j = 0; j < target.length; ++j) {

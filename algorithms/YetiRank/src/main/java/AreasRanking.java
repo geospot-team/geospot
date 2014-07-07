@@ -18,14 +18,14 @@ import static Utils.Utils.sample;
  * Time: 1:11
  */
 public class AreasRanking {
-    static int queriesCount = 300;
+    static int queriesCount = 200;
     static int cvCount = 100;
     static int testCount = 20;
-    static int areasPerQuery = 10;
+    static int areasPerQuery = 15;
     static String filename = "learn";
     static Random rand = new Random(10);
-    static int iterations = 500;
-    static double step = 1e-1;
+    static int iterations = 150;
+    static double step = 1e-2;
 
     public static void main(String[] args) {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "4");
@@ -51,13 +51,13 @@ public class AreasRanking {
     private static void printMean(double[][] results) {
         double[] mean = new double[results[0].length];
         for (int i = 0; i < iterations; ++i) {
-            for (int cv = 0; cv < cvCount; ++cv) {
+            for (int cv = 0; cv < results.length; ++cv) {
                 mean[i] += results[cv][i];
             }
-            mean[i] /= cvCount;
+            mean[i] /= results.length;
         }
 
-        System.out.println("Mean cv scores on iterations: " + mkString(mean) + "\n");
+        System.out.println("Mean scores on iterations: " + mkString(mean) + "\n");
         double max = 0;
         double maxInd = 0;
         for (int i=0;i<mean.length;++i)
@@ -82,6 +82,7 @@ public class AreasRanking {
             model.fit(learn);
             scores[cv] = model.ndcg(test);
             System.out.println(String.format("CV iteration working time: %d\nFor cv iteration %d scores are %s\n",(System.currentTimeMillis() - startTime) / 1000,cv,mkString(scores[cv])));
+            printMean(model.ndcg(learn));
         }
         return scores;
     }
