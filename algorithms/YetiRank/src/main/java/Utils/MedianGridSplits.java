@@ -165,7 +165,7 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
 
         double[] bordersValues = new double[borders.size() - 1];
         for (int i = 0; i < borders.size() - 1; ++i) {
-            bordersValues[i] = borders.get(i);
+            bordersValues[i] = feature[borders.get(i)];
 
         }
 

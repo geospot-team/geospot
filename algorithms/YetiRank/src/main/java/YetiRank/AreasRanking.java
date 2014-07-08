@@ -11,7 +11,6 @@ import com.spbsu.ml.data.impl.DataSetImpl;
 import com.spbsu.ml.data.tools.DataTools;
 
 import java.io.File;
-import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
@@ -34,9 +33,8 @@ public class AreasRanking {
     static int k = 10;
 
     static String filename = "learn";
-    static Random rand = new Random(10);
-    static int iterations = 1500;
-    static double step = 1e-2;
+    static int iterations = 300;
+    static double step = 1e-1;
     static Function<DataSet, double[][]> weightFunction = new EqualWeights();
 
     public static void main(String[] args) {

@@ -28,9 +28,9 @@ public class NdcgWeights implements Function<DataSet, double[][]> {
             for (int j = 0; j < target.length; ++j) {
                 if (target[i] < target[j]) {
                     swap(i, j, target);
-                    double diff = 1.1 - ndcgRanks(ranks, target, bestDCG, k);//+ Math.log(1 + (ranks[i] - ranks[j]) / ranks.length);
+                    double diff = 1.0 - ndcgRanks(ranks, target, bestDCG, k);//+ Math.log(1 + (ranks[i] - ranks[j]) / ranks.length);
                     swap(i, j, target);
-                    weights[i][j] = diff; // pairs, which make big diff in ndcg are more important
+                    weights[i][j] = Math.exp(-diff); // pairs, which make big diff in ndcg are more important
                     totalWeight += weights[i][j];
                 } else {
                     weights[i][j] = 0;

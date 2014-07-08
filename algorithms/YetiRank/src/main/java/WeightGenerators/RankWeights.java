@@ -4,22 +4,23 @@ import com.spbsu.ml.data.DataSet;
 
 import java.util.function.Function;
 
+import static Utils.Utils.rank;
+
 /**
  * User: Vasily
  * Date: 08.07.14
  * Time: 15:18
  */
-public class DiffWeights implements Function<DataSet, double[][]> {
+public class RankWeights implements Function<DataSet, double[][]> {
     @Override
     public double[][] apply(DataSet ds) {
         double totalWeight = 0;
+        double[] ranks = rank(ds.target().toArray());
         double[][] weights = new double[ds.data().rows()][ds.data().rows()];
         for (int i = 0; i < weights.length; ++i) {
             for (int j = 0; j < weights.length; ++j) {
-                double first = ds.target().get(i);
-                double second = ds.target().get(j);
-                if (first < second) {
-                    weights[i][j] = Math.log(1 + first - second);
+                if (ranks[i] < ranks[j]) {
+                    weights[i][j] = Math.log(1 + ranks[j] - ranks[i]);
                     totalWeight += weights[i][j];//target[j] - target[i];
 
                 } else {

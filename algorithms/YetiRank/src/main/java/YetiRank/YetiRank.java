@@ -21,8 +21,8 @@ import java.util.function.Function;
 public class YetiRank {
     final int iterations;
     final double step;
-    final int maxLevels = 32;
-    final int maxDepth = 6;
+    final int maxLevels = 16;
+    final int maxDepth = 3;
     private Ensemble ensemble;
 
 
