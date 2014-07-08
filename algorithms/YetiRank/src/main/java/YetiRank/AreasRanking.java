@@ -1,7 +1,7 @@
 package YetiRank;
 
 import Utils.FastScanner;
-import WeightGenerators.DiffWeights;
+import WeightGenerators.EqualWeights;
 import com.spbsu.commons.math.vectors.Mx;
 import com.spbsu.commons.math.vectors.Vec;
 import com.spbsu.commons.math.vectors.impl.mx.VecArrayMx;
@@ -29,7 +29,7 @@ public class AreasRanking {
     static int cvCount = 20;
     static int testCount = 40;
     static int testQueries = 50;
-    static int querySize = 15;
+    static int querySize = 20;
 
     static int k = 10;
 
@@ -37,7 +37,7 @@ public class AreasRanking {
     static Random rand = new Random(10);
     static int iterations = 1500;
     static double step = 1e-2;
-    static Function<DataSet, double[][]> weightFunction = new DiffWeights();
+    static Function<DataSet, double[][]> weightFunction = new EqualWeights();
 
     public static void main(String[] args) {
         System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "4");
@@ -60,7 +60,8 @@ public class AreasRanking {
             dataVec[i] = new ArrayVec(data[i]);
         Mx dataMx = new VecArrayMx(dataVec);
         Vec target = new ArrayVec(ratings);
-        double[][] results = crossValidation(new DataSetImpl(dataMx, target));
+        DataSetImpl ds = new DataSetImpl(dataMx, target);
+        double[][] results = crossValidation(ds);
         printMean(results);
 
     }
@@ -92,15 +93,17 @@ public class AreasRanking {
         for (int cv = 0; cv < cvCount; ++cv) {
             long startTime = System.currentTimeMillis();
             System.out.println("Starting cv iteration");
-
             int[] index = sample(ds.data().rows());
             int[] learnIndex = new int[index.length - testCount];
             int[] testIndex = new int[testCount];
+            System.arraycopy(index, 0, learnIndex, 0, index.length - testCount);
+            System.arraycopy(index, index.length - testCount, testIndex, 0, testCount);
             DataSet learn = DataTools.getSubset(ds, learnIndex);
             YetiRank model = new YetiRank(iterations, step);
             model.fit(learn, weightFunction);
             scores[cv] = calcScore(ds, testIndex, model);
             System.out.println(String.format("CV iteration working time: %d\nFor cv iteration %d scores are %s\n", (System.currentTimeMillis() - startTime) / 1000, cv, mkString(scores[cv])));
+            System.out.println(String.format("Learn ndcg@%d scores: %s", k, mkString(calcScore(ds, learnIndex, model))));
         }
         return scores;
     }
@@ -108,8 +111,8 @@ public class AreasRanking {
     private static double[] calcScore(DataSetImpl ds, int[] testIndex, YetiRank model) {
         DataSet[] queries = generateTest(ds, testIndex);
         double[][] scores = new double[queries.length][];
-        for (int i=0;i<queries.length;++i) {
-            scores[i] = ndcg(queries[i],model);
+        for (int i = 0; i < queries.length; ++i) {
+            scores[i] = ndcg(queries[i], model);
         }
         return rowMean(scores);
     }
@@ -118,19 +121,19 @@ public class AreasRanking {
         //first index — iteration, second — query
         double[] groundTruth = query.target().toArray();
         double[] ranks = rank(groundTruth);
-        double best = dcg(groundTruth,groundTruth,k);
+        double best = dcg(groundTruth, groundTruth, k);
 
         double[][] predictions = model.predict(query.data());
         double[] result = new double[iterations];
-        for (int i=0;i<iterations;++i)   {
-            result[i] = ndcgRanks(ranks,predictions[i],best,k);
+        for (int i = 0; i < iterations; ++i) {
+            result[i] = ndcgRanks(ranks, predictions[i], best, k);
         }
         return result;
     }
 
     private static DataSet[] generateTest(DataSetImpl ds, int[] testIndex) {
         DataSet[] test = new DataSet[testQueries];
-        for (int i = 0; i < testCount; ++i) {
+        for (int i = 0; i < testQueries; ++i) {
             shuffle(testIndex);
             int[] index = new int[querySize];
             System.arraycopy(testIndex, 0, index, 0, querySize);

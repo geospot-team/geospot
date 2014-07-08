@@ -13,7 +13,6 @@ public class DiffWeights implements Function<DataSet, double[][]> {
     @Override
     public double[][] apply(DataSet ds) {
         double totalWeight = 0;
-
         double[][] weights = new double[ds.data().rows()][ds.data().rows()];
         for (int i = 0; i < weights.length; ++i) {
             for (int j = 0; j < weights.length; ++j) {

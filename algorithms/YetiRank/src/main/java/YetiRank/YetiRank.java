@@ -22,7 +22,7 @@ public class YetiRank {
     final int iterations;
     final double step;
     final int maxLevels = 32;
-    final int maxDepth = 5;
+    final int maxDepth = 6;
     private Ensemble ensemble;
 
 
