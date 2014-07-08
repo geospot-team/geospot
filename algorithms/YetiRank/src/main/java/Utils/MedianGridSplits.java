@@ -1,7 +1,7 @@
 package Utils;
 
-import Data.Query;
-import Data.Splits;
+import YetiRankQueries.Optimization.Query;
+import com.spbsu.ml.data.DataSet;
 import gnu.trove.list.array.TIntArrayList;
 
 import java.util.ArrayList;
@@ -25,11 +25,48 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
 
     private final int featuresCount;
     private final int binFactor;
-    private final Random rand = new Random(11);
+    private final Random rand = new Random();
 
     private int[] index;
     private int[][] sortedIndex;
 
+
+    public MedianGridSplits(DataSet ds, int binFactor) {
+        this.binFactor = binFactor;
+        featuresCount = ds.data().columns();
+        data = new double[featuresCount][];
+        for (int feature = 0; feature < featuresCount; ++feature) {
+            data[feature] = ds.data().col(feature).toArray();
+        }
+
+        splits = new ArrayList<>(featuresCount); // splits — array for candidate splits for every feature
+        levels = new int[featuresCount];
+
+        init();
+
+
+    }
+
+    private void init() {
+        this.index = new int[data[0].length];
+        for (int i = 0; i < this.index.length; ++i) {
+            this.index[i] = i;
+        }
+
+        this.sortedIndex = new int[data.length][];
+        for (int i = 0; i < data.length; ++i) {
+            this.sortedIndex[i] = argsort(i);
+        }
+
+        calcLevels();
+
+        for (int feature = 0; feature < featuresCount; ++feature) {
+            List<Split> featureSplits = new ArrayList<>(min(binFactor, levels[feature]));
+            splits.add(feature, new Splits(featureSplits, feature));
+        }
+
+        calcSplits();
+    }
 
     public MedianGridSplits(Query[] queries, int binFactor) {
 
@@ -54,24 +91,7 @@ public class MedianGridSplits implements FeatureSplitsStreamGenerator {
             }
         }
 
-        this.index = new int[data[0].length];
-        for (int i = 0; i < this.index.length; ++i) {
-            this.index[i] = i;
-        }
-
-        this.sortedIndex = new int[data.length][];
-        for (int i = 0; i < data.length; ++i) {
-            this.sortedIndex[i] = argsort(i);
-        }
-
-        calcLevels();
-
-        for (int feature = 0; feature < featuresCount; ++feature) {
-            List<Split> featureSplits = new ArrayList<>(min(binFactor, levels[feature]));
-            splits.add(feature, new Splits(featureSplits, feature));
-        }
-
-        calcSplits();
+        init();
 
     }
 

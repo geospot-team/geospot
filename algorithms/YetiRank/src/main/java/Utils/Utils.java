@@ -125,7 +125,7 @@ public class Utils {
 
     public static int[] sample(int n) {
         int[] result = new int[n];
-        for (int i=0;i<result.length;++i) {
+        for (int i = 0; i < result.length; ++i) {
             result[i] = i;
         }
         shuffle(result);
@@ -133,10 +133,18 @@ public class Utils {
     }
 
     public static void shuffle(int[] index) {
-        for (int i=index.length-1;i>0;--i) {
-            int j = random.nextInt(i+1);
-            swap(i,j,index);
+        for (int i = index.length - 1; i > 0; --i) {
+            int j = random.nextInt(i + 1);
+            swap(i, j, index);
         }
     }
+
+    public static void swap(int i, int j, double[] target) {
+        double tmp = target[i];
+        target[i] = target[j];
+        target[j] = tmp;
+    }
+
+
 
 }

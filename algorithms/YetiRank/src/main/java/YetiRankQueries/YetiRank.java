@@ -1,10 +1,12 @@
-import Data.Query;
+package YetiRankQueries;
+
 import Models.Ensemble;
 import Models.ObliviousTree;
-import Optimization.TreeGrower;
 import Utils.FeatureSplitsStreamGenerator;
 import Utils.MedianGridSplits;
-import Utils.ParallelPrecompute;
+import YetiRankQueries.Optimization.ParallelPrecompute;
+import YetiRankQueries.Optimization.Query;
+import YetiRankQueries.Optimization.TreeGrower;
 
 import java.util.concurrent.ForkJoinPool;
 
@@ -18,7 +20,7 @@ public class YetiRank {
     final double step;
     final int maxThreads = 4;
     final int maxLevels = 32;
-    final int maxDepth = 6;
+    final int maxDepth = 5;
     final ForkJoinPool pool = new ForkJoinPool(maxThreads);
     private Ensemble ensemble;
 
@@ -29,7 +31,7 @@ public class YetiRank {
     }
 
     public void fit(Query[] queries) {
-        ObliviousTree[] weakModels =new ObliviousTree[iterations];
+        ObliviousTree[] weakModels = new ObliviousTree[iterations];
         int features = queries[0].data.columns();
         FeatureSplitsStreamGenerator splitsGenerator = new MedianGridSplits(queries, maxLevels);
         for (int t = 0; t < iterations; t++) {
@@ -42,9 +44,9 @@ public class YetiRank {
     }
 
     public double[][] predict(Query[] queries) {
-        double[][]  results = new double[queries.length][];
-        for (int q=0;q< queries.length;++q) {
-            results[q] = ensemble.predict(queries[q].data)[iterations-1];
+        double[][] results = new double[queries.length][];
+        for (int q = 0; q < queries.length; ++q) {
+            results[q] = ensemble.predict(queries[q].data)[iterations - 1];
         }
         return results;
     }

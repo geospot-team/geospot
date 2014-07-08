@@ -22,8 +22,6 @@ public class Ensemble {
         double result[][] = new double[data.rows()][];
         for (int i = 0; i < result.length; ++i)
             result[i] = predict(data.row(i));
-
-
         return transpose(result);
     }
 

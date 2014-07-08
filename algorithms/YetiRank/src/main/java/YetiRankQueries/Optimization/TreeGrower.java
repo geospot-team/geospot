@@ -1,6 +1,5 @@
-package Optimization;
+package YetiRankQueries.Optimization;
 
-import Data.Query;
 import Models.ObliviousTree;
 import Utils.FeatureSplitsStreamGenerator;
 import Utils.Split;

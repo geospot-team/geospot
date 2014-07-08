@@ -1,5 +1,7 @@
-import Data.Query;
+package YetiRankQueries;
+
 import Utils.FastScanner;
+import YetiRankQueries.Optimization.Query;
 import com.spbsu.commons.math.vectors.Mx;
 import com.spbsu.commons.math.vectors.Vec;
 import com.spbsu.commons.math.vectors.impl.mx.VecBasedMx;

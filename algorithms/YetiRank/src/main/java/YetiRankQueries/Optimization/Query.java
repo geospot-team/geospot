@@ -1,4 +1,4 @@
-package Data;
+package YetiRankQueries.Optimization;
 
 import com.spbsu.commons.math.vectors.Mx;
 import com.spbsu.commons.math.vectors.Vec;
@@ -155,13 +155,14 @@ public class Query {
                 }
             }
         }
-        for (int i=0;i<target.length;++i)
-            for (int j=i+1;j<target.length;++j) {
+        for (int i = 0; i < target.length; ++i)
+            for (int j = i + 1; j < target.length; ++j) {
                 weights[i][j] /= totalWeight;
                 weights[j][i] /= totalWeight;
             }
         return weights;
     }
+
     public static double[][] ndcgWeights(double[] target, int k) {
         double[] ranks = rank(target);
         double bestDCG = dcgRanks(ranks, target, k);
@@ -172,9 +173,10 @@ public class Query {
             for (int j = 0; j < target.length; ++j) {
                 if (target[i] < target[j]) {
                     swap(i, j, target);
-                    double diff = 1.0 - ndcgRanks(ranks, target, bestDCG, k);
+//                    double diff = 1;
+                    double diff = 1;//11.1 - ndcgRanks(ranks, target, bestDCG, k);//+ Math.log(1 + (ranks[i] - ranks[j]) / ranks.length);
                     swap(i, j, target);
-                    weights[i][j] = exp(-2 * diff);
+                    weights[i][j] = diff; // pairs, which make big diff in ndcg are more important
                     totalWeight += weights[i][j];
                 } else {
                     weights[i][j] = 0;
