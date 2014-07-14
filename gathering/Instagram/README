@@ -1,0 +1,4 @@
+﻿Get media for June, 2014 in St. Petersburg (using python-instagram package).
+
+search.py -- methods for searching media
+get_media.py -- methods for gathering
