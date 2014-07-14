@@ -1,6 +1,5 @@
-package Utils;
+package YetiRankQueries.Optimization;
 
-import Data.Query;
 import com.spbsu.ml.Trans;
 
 import java.util.concurrent.RecursiveAction;
