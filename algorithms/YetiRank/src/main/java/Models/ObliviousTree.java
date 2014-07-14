@@ -1,4 +1,4 @@
-package WeakLearner;
+package Models;
 
 import com.spbsu.commons.math.vectors.Vec;
 import com.spbsu.ml.Func;

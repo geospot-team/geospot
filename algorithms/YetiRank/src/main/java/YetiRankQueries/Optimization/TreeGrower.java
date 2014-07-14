@@ -1,9 +1,8 @@
-package Optimization;
+package YetiRankQueries.Optimization;
 
-import Data.Query;
+import Models.ObliviousTree;
 import Utils.FeatureSplitsStreamGenerator;
 import Utils.Split;
-import WeakLearner.ObliviousTree;
 import com.spbsu.commons.math.vectors.Mx;
 import com.spbsu.commons.math.vectors.MxTools;
 import com.spbsu.commons.math.vectors.Vec;
@@ -48,14 +47,11 @@ public class TreeGrower {
 
 
     private Split calcScore(Split candidate) {
-        Mx M = new VecBasedMx(1 << currentLevel, 1 << currentLevel);
-        Vec v = new ArrayVec(1 << currentLevel);
-
+        Mx M = new VecBasedMx(1 << (currentLevel + 1), 1 << (currentLevel + 1));
+        Vec v = new ArrayVec(1 << (currentLevel + 1));
         for (int q = 0; q < queries.length; ++q) {
-
             int bootstrapWeight = bootstrap ? rand.nextPoisson(1) : 1;
             if (bootstrapWeight == 0) continue;
-
             for (int i = 0; i < queries[q].rows; ++i) {
                 int newLeaf_i = queries[q].data.row(i).get(candidate.feature) > candidate.value ? currentLeaves[q][i] | 1 << currentLevel : currentLeaves[q][i];
                 v.set(newLeaf_i, v.get(newLeaf_i) + bootstrapWeight * queries[q].v[i]);
@@ -71,8 +67,8 @@ public class TreeGrower {
     }
 
     private double[] calcLeaves() {
-        Mx M = new VecBasedMx(1 << currentLevel, 1 << currentLevel);
-        Vec v = new ArrayVec(1 << currentLevel);
+        Mx M = new VecBasedMx(1 << (currentLevel + 1), 1 << (currentLevel + 1));
+        Vec v = new ArrayVec(1 << (currentLevel + 1));
 
         for (int q = 0; q < queries.length; ++q) {
             for (int i = 0; i < queries[q].rows; ++i) {
@@ -102,12 +98,12 @@ public class TreeGrower {
 
     public ObliviousTree fit() {
         for (int i = 0; i < depth; ++i) {
-            currentLevel = i + 1;
+            currentLevel = i;
             //TODO: check what we want with tree score — minimize or maximize  ( we minimize MSE, formula looks like non-constant part of MSE)
             Split bestSplit = splitsGenerator.generateSplits()
                     .filter(splits -> !used[splits.feature])
                     .flatMap(splits -> splits.splits.parallelStream().map(this::calcScore))
-                    .min((first, second) -> first.score > second.score ? 1 : -1).get();
+                    .min((first, second) -> first.score < second.score ? -1 : 1).get();
 
             used[bestSplit.feature] = true;
             addSplit(bestSplit);
