@@ -1,11 +1,11 @@
-from instagram import oauth2
-from instagram.json_import import simplejson
-
 import urllib
 import re
 import hmac
 from hashlib import sha256
 import calendar
+
+from instagram import oauth2
+import simplejson
 
 re_path_template = re.compile('{\w+}')
 
@@ -101,13 +101,10 @@ def search_method(**config):
                     error_message = content_obj.get('error_message') or "Your client is making too many request per second"
                     raise Exception(content_obj.get('code'), "Rate limited", error_message)
                 raise Exception(content_obj.has_key('code'), content_obj.has_key('error_type'), content_obj.has_key('error_message'))
-            #print simplejson.dumps(content_obj)
-            #print content_obj.get('pagination', {})
+        
             api_responses = []
             status_code = content_obj['meta']['code']
             if status_code == 200:
-                #for element in content_obj["data"]: 
-                #    del element['images'] 
                 return content_obj["data"], self._build_pagination_info(content_obj)
             else:
                 raise Exception(content_obj['meta']['error_type'], content_obj['meta']['error_message'])
