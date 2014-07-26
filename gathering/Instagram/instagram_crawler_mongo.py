@@ -98,6 +98,7 @@ class InstagramCrawler(object):
         while not inserted:
             try:
                 inserted_ids = self.writer.insert(self.batch, continue_on_error=True)
+                inserted = True
             except pymongo.OperationFailure as exp:
                 print('Unexpected error with mongo: {}\n Try add latter'.format(str(exp)))
                 sleep(1)
