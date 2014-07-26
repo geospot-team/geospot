@@ -4,6 +4,7 @@ import json
 import pandas as pd
 import pymongo
 
+
 # get_ipython().magic('matplotlib inline')
 # mongo connection
 config_file = open(sys.argv[1]).read()
@@ -314,7 +315,7 @@ def transform(place):
     tagsList = [tag for tag in tags if place_tags[tag]]
     result = {
         "_id": place.id,
-        "location":  [place.lon, place.lat],
+        "location": [place.lon, place.lat],
         "name": place_name
     }
     if pd.notnull(place["url"]):
@@ -330,7 +331,7 @@ def transform(place):
     return result
 
 
-#first prepare of data
+# first prepare of data
 dataset["transport"] = dataset["highway"].combine_first(dataset["transport"])
 dataset["transport"] = dataset["transport"].combine_first(dataset["station"])
 dataset["transport"] = dataset["transport"].combine_first(dataset["railway"])
@@ -344,7 +345,17 @@ db = client[config["database"]]
 collection = db[config["collection"]]
 
 #clear collection
-collection.remove({})
-collection.insert(queries)
-collection.ensure_index([("location","2d")])
+
+
+updated = False
+while not updated:
+    try:
+        collection.remove({})
+        collection.insert(queries)
+        collection.ensure_index([("location", "2d")])
+        updated = True
+    except pymongo.OperationFailure as exp:
+        updated = False
+        print('Unexpected error: {}\n Restart gathering'.format(str(exp)))
+
 
