@@ -83,6 +83,10 @@ def configure_loggers():
     ch.setLevel(DEFAULT_LEVEL)
     ch.setFormatter(formatter)
 
+    logger = logging.getLogger('__main__')
+    logger.setLevel(DEFAULT_LEVEL)
+    logger.addHandler(ch)
+
     logger = logging.getLogger(Collector.__name__)
     logger.setLevel(DEFAULT_LEVEL)
     logger.addHandler(ch)

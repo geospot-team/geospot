@@ -10,7 +10,7 @@ from datetime import datetime
 from bson import ObjectId
 import foursquare
 from pymongo import MongoClient
-from pymongo.errors import BulkWriteError
+from pymongo.errors import BulkWriteError, InvalidOperation
 import Collector
 from MultiProcessLogger import DEFAULT_LEVEL
 import MultiProcessLogger
@@ -30,36 +30,6 @@ class Connection:
         client = foursquare.Foursquare(client_id=self.connection_strings[self.current_client][0],
                                        client_secret=self.connection_strings[self.current_client][1])
         return client
-
-
-class ConnectionManager:
-    CLIENT_ID_SECRET_COL_1 = [
-        ('JRZZ2BAR4F5YKQ53NJ5HNNLOSY3C35FZFYPNGVS5GXMDFMCK', 'ISJRHW1U2MI5EEL1KGIJODBL0123C0KJUMLAIJQ40VLTVHGO'),
-        ('MRAQNMNLQCN2WDZ5IQ5VBRN0GRG0JR42ID0ADO4ECV45SLPX', 'WQA3QM2OV2BY3JKLJ3FURY2XWQX5RNHKRENRDPWYE3HH15XH')]
-    CLIENT_ID_SECRET_COL_2 = [
-        ('D1JJ3OZKKVJBGNU0RTILMRTFDL2RAX0HPTBW5Z0QDRIZJW1B', 'BGKBQSMXRSMLSE4JCOWL11R1EDYNRCPJO1SMOGUEE3RAPSJO'),
-        ('LLAM5AUR3OLXLBLU3GMFQLWGQHP0AUPBR32JCLATDGKCTFJY', '1XRBAJHYBOYARTGYKKGU0DQZZRNO5OANUJ1QV2D2GGCXLPXK')]
-    CLIENT_ID_SECRET_COL_3 = [
-        ('2D5Y0FAIVLATRSJO5G4S1WQMSJY0ULBRECCANUY2MBE4JX24', 'IGDKSM4FV3LMVRYOASQAE5QKJKSMMJGWGEJCTGBWJOCFHMVN'),
-        ('PWPCNOQFDGOFXJJEEKXYKCHSNOSI50FZHNXXEIN3USYT323V', 'JTTAEXUCLVKTYS3FEPMUFRW3OUP2PT3W03V023QNPKL3N40O')]
-    CLIENT_ID_SECRET_COL_4 = [
-        ('5BLTXN3T1T5Z4PXMDZTR01PPWLBHAERHKXU3WIK1EKEY4LZD', 'K3KYNQ1V2I051A55EOBWYDZPJ0JGVD1YFTIGDBIUINMODT0J'),
-        ('M4KPPR52RLVEHCVQ13NUM2ZVBFU2P5QWNRWCEPVEP1FEOCLS', 'I2P1VHBI3AN1UK0LDDJNPDK2TZ3FFRGW1KGUWJ3DSAXWEHMM')]
-    CLIENT_ID_SECRET_COL_5 = [
-        ('N4VSAGO0XKY4VZQI2JF2GTWEUXJT3SEJACF0BXVKO5JMFOC5', 'VLQ3AC4RJVBN2IFLBG5AXU4BQUTF0CB3AREU4BDGKY1M0NDV'),
-        ('GDEQTXCP0EWD2J32DZMHNEP4ZBVNQGFZ50PEMGQNZL2JJJTQ', 'MXLFMJJS34BU32HMWU5KK0CYPIONTLXOGIP3EWSNDH3GGZSM')]
-
-    def __init__(self):
-        self.connection_strings = [ConnectionManager.CLIENT_ID_SECRET_COL_1, ConnectionManager.CLIENT_ID_SECRET_COL_2,
-                                   ConnectionManager.CLIENT_ID_SECRET_COL_3, ConnectionManager.CLIENT_ID_SECRET_COL_4,
-                                   ConnectionManager.CLIENT_ID_SECRET_COL_5]
-        self.available_count = len(self.connection_strings)
-
-    def get_connection(self):
-        if (self.available_count > 0):
-            self.available_count -= 1
-            return Connection(self.connection_strings[len(self.connection_strings) - self.available_count - 1])
-        raise Exception("No connections available")
 
 
 class SearchParameter:
@@ -179,9 +149,13 @@ class DB_Mongodb_Writer(Writer):
         self.venues_updates = self.db['venues_updates']
         self.write_updates = write_updates
         self.bulk = self.venues.initialize_unordered_bulk_op()
+        self.bulk_updates = self.venues_updates.initialize_unordered_bulk_op()
+        self.bulk_inserts = self.venues_updates.initialize_unordered_bulk_op()
         self.logger = logging.getLogger(__name__)
         MultiProcessLogger.init_logger(self.logger, queue)
         self.max_length = 1000
+        self.empty_month = self.__get_empty_month()
+
 
     def writeRow(self, row):
         to_update = self.__combine_row(row)
@@ -191,10 +165,13 @@ class DB_Mongodb_Writer(Writer):
         #    self.flush()
             # self.venues.update({'_id': to_update['_id']}, to_update, upsert=True)
         if self.write_updates:
-            updates = self.__combine_row_updates(row, datetime.today().strftime('_%d_%m_%y'))
-            updates['_id'] = to_update['_id']
-            to_update['update_timestamp'] = datetime.today()
-            self.venues_updates.update({'_id': updates['_id']}, updates, upsert=True)
+            updates = self.__combine_row_updates(row, datetime.today())
+            self.bulk_inserts.find({'_id': updates['_id']}).upsert().update({'$setOnInsert':
+                                                                         self.__get_empty_updates_row(updates['_id'],
+                                                                                                      datetime.today(),
+                                                                                                      self.empty_month)})
+            self.bulk_updates.find({'_id': updates['_id']}).upsert().update({'$set': updates})
+            #self.venues_updates.update({'_id': updates['_id']}, updates, upsert=True)
 
     def flush(self):
         try:
@@ -202,6 +179,18 @@ class DB_Mongodb_Writer(Writer):
                 result = self.bulk.execute()
                 self.logger.info(result)
                 self.bulk = self.venues.initialize_unordered_bulk_op()
+        except PyMongoError as ex:
+            self.logger.info(bwe)
+        except InvalidOperation as er:
+            pass
+        try:
+            if (len(self.bulk_updates._BulkOperationBuilder__bulk.ops) != 0):
+                result = self.bulk_inserts.execute()
+                self.logger.info(result)
+                result = self.bulk_updates.execute()
+                self.logger.info(result)
+                self.bulk_inserts = self.venues_updates.initialize_unordered_bulk_op()
+                self.bulk_updates = self.venues_updates.initialize_unordered_bulk_op()
         except BulkWriteError as bwe:
             self.logger.info(bwe)
         pass
@@ -230,7 +219,22 @@ class DB_Mongodb_Writer(Writer):
                 d[field] = result
         return d
 
-    def __combine_row_updates(self, row, field_suffix):
+    def __get_empty_updates_row(self, id, date, empty_month):
+        d = dict()
+        for field in FIELDS_UPDATES:
+            d[field] = empty_month
+        d['_id'] = id
+        d['update_timestamp'] = date
+        return d
+
+    def __get_empty_month(self):
+        empty_month = dict()
+        for i in range(31):
+            empty_month[str(i)] = 0
+            #empty_month[i] = 0
+        return empty_month
+
+    def __combine_row_updates(self, row, date):
         d = dict()
         for field in FIELDS_UPDATES:
             result = row
@@ -241,7 +245,9 @@ class DB_Mongodb_Writer(Writer):
                 else:
                     result = ''
                     break
-            d[field + field_suffix] = result
+            d[field] = result
+        d['_id'] = ObjectId(row['id'])
+        d['update_timestamp'] = date
         return d
 
 

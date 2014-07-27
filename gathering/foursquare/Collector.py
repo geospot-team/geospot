@@ -56,7 +56,8 @@ def collectArea(readWriteManager, connectionsTo4sq, searchParameter):
     firstStepReader = readWriteManager.getFirstStepReader()
     ids = firstStepReader.getIds()
     ids = chunks(ids, len(ids)/threadsCount)
-    args = [(readWriteManager, ids[i], connectionsTo4sq[i], queue) for i in range(threadsCount)]
+    args = [(readWriteManager, ids[i], connectionsTo4sq[i]) for i in range(threadsCount)]
+    pool = Pool(threadsCount, secondStepGrabber_init, [queue])
     logger.info("Starting " + str(threadsCount) + " processes for second step...")
     result = pool.map(secondStepGrabber, args)
 
