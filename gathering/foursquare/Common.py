@@ -10,7 +10,7 @@ from datetime import datetime
 from bson import ObjectId
 import foursquare
 from pymongo import MongoClient
-from pymongo.errors import BulkWriteError, InvalidOperation
+from pymongo.errors import BulkWriteError, InvalidOperation, PyMongoError
 import Collector
 from MultiProcessLogger import DEFAULT_LEVEL
 import MultiProcessLogger
@@ -47,101 +47,8 @@ class SearchParameter:
                ', e:' + str(self.eastPoint) + ', w:' + str(self.westPoint)
 
 
-class Writer:
-    def __init__(self, header):
-        self.header = header
-
-    def writeRow(self, row):
-        pass
-
-    def flush(self):
-        pass
-
-    def close(self):
-        pass
-
-
-class Reader:
-    def __init__(self, header):
-        self.header = header
-
-    def getRow(self, id):
-        pass
-
-    def getRows(self, ids):
-        pass
-
-    def getIds(self):
-        pass
-
-    def close(self):
-        pass
-
-
-class CSVWriter(Writer):
-    def __init__(self, header, output_file_name):
-        Writer.__init__(self, header)
-        self.output_file_name = output_file_name
-        self.csv_file = open(self.output_file_name, 'wb')
-        self.writer = csv.DictWriter(self.csv_file, header)
-        self.writer.writeheader()
-
-    def writeRow(self, row):
-        self.writer.writerow(self.__combine_row(row))
-
-    def flush(self):
-        self.csv_file.flush()
-
-    def close(self):
-        self.csv_file.close()
-
-    def __combine_row(self, row):
-        d = dict()
-        for field in self.header:
-            result = row
-            if field == 'categoryIds':
-                result = ';'.join(item['id'] for item in row['categories'])
-            else:
-                subFields = field.split('_')
-                for subField in subFields:
-                    if result.has_key(subField):
-                        result = result[subField]
-                    else:
-                        result = ''
-                        break
-            d[field] = encodeObject(result)
-        return d
-
-
-class CSVReader:
-    def __init__(self, header, input_file_name):
-        Reader.__init__(self, header)
-        self.input_file_name = input_file_name
-        self.csv_file = open(self.input_file_name, 'r')
-        self.reader = csv.DictReader(self.csv_file, header)
-
-    def getRow(self, id):
-        pass
-
-    def getRows(self, ids):
-        pass
-
-    def getIds(self):
-        ids = []
-        while (True):
-            try:
-                ids.extend(decodeObject(self.reader.next()['id']))
-            except StopIteration:
-                break
-        return ids
-
-    def close(self):
-        self.csv_file.close()
-
-
-class DB_Mongodb_Writer(Writer):
-    def __init__(self, header, db_connection_string, write_updates, queue=None):
-        Writer.__init__(self, header)
+class DB_Mongodb_Writer:
+    def __init__(self, db_connection_string, write_updates, queue=None):
         self.db_connection_string = db_connection_string
         self.client = MongoClient(db_connection_string)
         self.db = self.client['db_4sq']
@@ -180,7 +87,7 @@ class DB_Mongodb_Writer(Writer):
                 self.logger.info(result)
                 self.bulk = self.venues.initialize_unordered_bulk_op()
         except PyMongoError as ex:
-            self.logger.info(bwe)
+            self.logger.info(ex)
         except InvalidOperation as er:
             pass
         try:
@@ -200,7 +107,7 @@ class DB_Mongodb_Writer(Writer):
 
     def __combine_row(self, row):
         d = dict()
-        for field in self.header:
+        for field in FIELDS:
             result = row
             if field == 'id':
                 field = '_id'
@@ -251,9 +158,8 @@ class DB_Mongodb_Writer(Writer):
         return d
 
 
-class DB_Mongodb_Reader(Reader):
+class DB_Mongodb_Reader:
     def __init__(self, header, db_connection_string):
-        Reader.__init__(self, header)
         self.db_connection_string = db_connection_string
         self.client = MongoClient(db_connection_string)
         self.db = self.client['db_4sq']
@@ -276,23 +182,9 @@ class DB_Mongodb_Reader(Reader):
         self.client.close()
 
 
-class ReadWriterManager:
-    def __init__(self):
-        pass
 
-    def getFirstStepWriter(self, queue=None):
-        pass
-
-    def getSecondStepWriter(self, queue=None):
-        pass
-
-    def getFirstStepReader(self):
-        pass
-
-
-class DB_Mongodb_ReadWriterManager(ReadWriterManager):
+class DB_Mongodb_ReadWriterManager:
     def __init__(self, db_connection_string):
-        ReadWriterManager.__init__(self)
         self.db_connection_string = db_connection_string
 
     def getFirstStepWriter(self, queue=None):
