@@ -2,32 +2,34 @@ import time
 from time import gmtime, strftime
 import sys
 import gzip
-import json
-from json import JSONEncoder
+import simplejson
+from simplejson import JSONEncoder
+import calendar
+from datetime import datetime
 
 from tweepy import Stream
 from tweepy import OAuthHandler
 from tweepy.streaming import StreamListener
 
 
-CKEY = 'nErsqiWgmF0b1ig0V7S81Ao30'
-CSECRET = 'YzHgEDwD8FUFFVZ0GhtlCTvrZS5H3j5P6Li88hidWs7x1Qlu5l'
-ATOKEN = '106777681-aOvw9xpfYwJE4OltT9nVcd5GqyfS8VDtxkGzu3X7'
-ASECRET = 'BQe5s8ldhadqyzoHql6YwlPMReVd5EPdw2tfmf7rNJEsd'
+CKEY = 'LId7s534ocvxl6r1LiJfA'
+CSECRET = '0qBx8REXNDQ5oo2IepMT2GUgLP2bMQE8iM7YFKS0NOs'
+ATOKEN = '2398065811-w9oTbdj7mZoLMFpchAsi5ubNfpv5AqIsqv0O5QQ'
+ASECRET = 'hiD1SReeldMDnAkjQkGXPHTDFwgPS2HbkFtaRIRZM9Aqt'
 
 SaintPeterburg = [29.424641, 59.633739, 30.759600, 60.247791]
 Moscow = [37.319260, 55.490700, 37.967609, 55.957600]
 
-to_save_main = ["created_at", "id", "text", "source", "geo", "retweet_count", "favorite_count"]
+to_save_main = ["id", "text", "retweet_count", "favorite_count"]
 to_save = {
-    "user": ["id", "followers_count", "friends_count", "listed_count", "created_at", "favourites_count"],
-    "place": ["id", "url", "bounding_box"],
-    "entities": ["hashtags"]
+    "user": ["id", "followers_count", "friends_count", "listed_count", "favourites_count"],
+    "place": ["id", "url", "bounding_box"]
 }
-to_save_entities = {
-    "urls": "expanded_url",
-    "user_mentions": "id",
-}
+sourse = ["Web", "iPhone", "iPad", "Android", "instagram", "foursquare"]
+
+def to_timestamp(date):
+    dt = datetime.strptime(date, "%a %b %d %H:%M:%S +0000 %Y")
+    return calendar.timegm(dt.timetuple())
 
 class Listener(StreamListener):
     def __init__(self):
@@ -46,27 +48,45 @@ class Listener(StreamListener):
 
     def on_data(self, data):
         try:
-            content = json.loads(data)
-            content_dict = {}
+            content = simplejson.loads(data)
 
+            content_dict = {}
             for el in to_save_main:
                 content_dict[el] = content[el]
             for key in to_save:
                 content_dict[key] = {}
                 for el in to_save[key]:
-                    content_dict[key][el] = content[key][el]
-            for key in to_save_entities:
-                entity = content["entities"][key]
-                ent_key = to_save_entities[key]
-                content_dict[key] = {}
-                if len(entity) != 0:
-                    content_dict[key][ent_key] = entity[0][ent_key]
+                    content_dict[key][el] = content[key][el] 
 
-            result = JSONEncoder().encode(content_dict)
-            #print(result)
+            tweet_sourse = content["source"]
+            for item in sourse:
+                if item in tweet_sourse:
+                    content_dict["source"] = item
+                    break
 
-            self.check_date()
-            self.txt_file.write(json.dumps(result))
+            geo = content["geo"]
+            if geo != None:
+                content_dict["geo"] = geo["coordinates"]
+            else:
+                # 1st method
+                bbox = content["place"]["bounding_box"]["coordinates"][0]
+                content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0])/4, 
+                                        (bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1])/4]
+                # 2nd method
+                #content_dict["geo"] = content["place"]["bounding_box"]["coordinates"][0]
+
+                # 3rd method
+                #content_dict["geo"] = content["place"]["bounding_box"]["coordinates"]
+
+            content_dict["created_at"] = to_timestamp(content["created_at"])
+            content_dict["user"]["created_at"] = to_timestamp(content["user"]["created_at"])
+            content_dict["hashtags"] = content["entities"]["hashtags"]
+
+            if content_dict["source"] in ["instagram", "foursquare"]:
+                content_dict["url"] = content["entities"]["urls"][0]["expanded_url"]
+
+            #print content_dict
+            self.txt_file.write(str(content_dict))
             self.txt_file.write("\n")
             self.txt_file.flush()
             self.counter += 1
@@ -77,8 +97,6 @@ class Listener(StreamListener):
 
     def on_error(self, status):
         print(status)
-        #self.txt_file.close()
-
 
 def report():
     endTime = time.time()
