@@ -49,7 +49,6 @@ class Listener(StreamListener):
                 inserted_ids = self.writer.insert(self.batch, continue_on_error=True)
                 self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
             except pymongo.OperationFailure as exp:
-<<<<<<< HEAD
                 print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
                 file_name = 'media_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
                 txt_file = gzip.open(file_name, 'a')
@@ -59,66 +58,6 @@ class Listener(StreamListener):
                 txt_file.flush()
                 txt_file.close()
                 self.batch = []
-
-
-def on_data(self, data):
-    try:
-        content = simplejson.loads(data)
-
-        content_dict = {}
-        for el in to_save_main:
-            content_dict[el] = content[el]
-        for key in to_save:
-            content_dict[key] = {}
-            for el in to_save[key]:
-                content_dict[key][el] = content[key][el]
-
-        tweet_sourse = content["source"]
-        for item in sourse:
-            if item in tweet_sourse:
-                content_dict["source"] = item
-                break
-
-        geo = content["geo"]
-        if geo != None:
-            content_dict["geo"] = geo["coordinates"]
-            content_dict["geo_enabled"] = True
-        else:
-            # 1st method
-            bbox = content["place"]["bounding_box"]["coordinates"][0]
-            content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4,
-                                   (bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1]) / 4]
-            content_dict["geo_enabled"] = False
-            # 2nd method
-            # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"][0]
-
-            # 3rd method
-            # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"]
-
-        content_dict["created_at"] = to_timestamp(content["created_at"])
-        content_dict["user"]["created_at"] = to_timestamp(content["user"]["created_at"])
-        content_dict["hashtags"] = content["entities"]["hashtags"]
-
-        if content_dict["source"] in ["instagram", "foursquare"]:
-            content_dict["url"] = content["entities"]["urls"][0]["expanded_url"]
-
-        content_dict["_id"] = content_dict["id"]
-        del (content_dict["id"])
-        self.batch.append(content_dict)
-        # print(result)
-        self.check_batch()
-        self.counter += 1
-        return True
-    except BaseException as e:
-        print('Failed on_data: ' + str(e))
-        time.sleep(1)
-
-
-def on_error(self, status):
-    print(status)
-    # self.txt_file.close()
-=======
-                print('Unexpected error with mongo: {}\n Try add latter'.format(str(exp)))
 
     def on_data(self, data):
         try:
@@ -134,7 +73,6 @@ def on_error(self, status):
 
             tweet_sourse = content["source"]
             content_dict["source"] = "other"
-
             for item in sourse:
                 if item in tweet_sourse:
                     content_dict["source"] = item
@@ -146,6 +84,7 @@ def on_error(self, status):
                 content_dict["geo"] = geo["coordinates"]
             else:
                 content_dict["certain_coords"] = 0
+                # 1st method
                 bbox = content["place"]["bounding_box"]["coordinates"][0]
                 content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4,
                                        (bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1]) / 4]
@@ -153,7 +92,7 @@ def on_error(self, status):
                 # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"][0]
 
                 # 3rd method
-                #content_dict["geo"] = content["place"]["bounding_box"]["coordinates"]
+                # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"]
 
             content_dict["created_at"] = to_timestamp(content["created_at"])
             content_dict["user"]["created_at"] = to_timestamp(content["user"]["created_at"])
@@ -173,10 +112,10 @@ def on_error(self, status):
             print('Failed on_data: ' + str(e))
             time.sleep(1)
 
+
     def on_error(self, status):
         print(status)
         # self.txt_file.close()
->>>>>>> FETCH_HEAD
 
 
 def report():
