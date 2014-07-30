@@ -46,9 +46,9 @@ class Listener(StreamListener):
     def check_batch(self):
         if len(self.batch) > self.batch_size:
             try:
-                inserted_ids = self.writer.insert(self.batch, continue_on_error=True)
-                self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
-            except pymongo.OperationFailure as exp:
+                self.writer.save(self.batch)
+                # self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
+            except Exception as exp:
                 print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
                 file_name = 'media_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
                 txt_file = gzip.open(file_name, 'a')
@@ -68,8 +68,10 @@ class Listener(StreamListener):
                 content_dict[el] = content[el]
             for key in to_save:
                 content_dict[key] = {}
-                for el in to_save[key]:
-                    content_dict[key][el] = content[key][el]
+                if content is not None:
+                    for el in to_save[key]:
+                        if content["place"] is not None:
+                            content_dict[key][el] = content[key][el]
 
             tweet_sourse = content["source"]
             content_dict["source"] = "other"
@@ -98,7 +100,7 @@ class Listener(StreamListener):
             content_dict["user"]["created_at"] = to_timestamp(content["user"]["created_at"])
             content_dict["hashtags"] = content["entities"]["hashtags"]
 
-            if content_dict["source"] in ["instagram", "foursquare"]:
+            if content_dict["source"] in ["instagram", "foursquare"] and len(content["entities"]["urls"]) > 0:
                 content_dict["url"] = content["entities"]["urls"][0]["expanded_url"]
 
             content_dict["_id"] = content_dict["id"]

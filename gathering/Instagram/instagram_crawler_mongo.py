@@ -97,10 +97,17 @@ class InstagramCrawler(object):
         inserted = False
         while not inserted:
             try:
-                inserted_ids = self.writer.insert(self.batch, continue_on_error=True)
+                self.writer.save(self.batch)
                 inserted = True
-            except pymongo.OperationFailure as exp:
+            except Exception as exp:
                 print('Unexpected error with mongo: {}\n Try add latter'.format(str(exp)))
+                file_name = 'media_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
+                txt_file = gzip.open(file_name, 'a')
+                for content_dict in self.batch:
+                    txt_file.write(str(content_dict))
+                    txt_file.write("\n")
+                txt_file.flush()
+                txt_file.close()
                 sleep(1)
 
     def check_reply(self, result, coords):
