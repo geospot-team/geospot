@@ -6,7 +6,6 @@ import calendar
 from datetime import datetime
 
 import pymongo
-
 import simplejson
 from tweepy import Stream
 from tweepy import OAuthHandler
@@ -41,6 +40,8 @@ class Listener(StreamListener):
         self.writer.ensure_index(([("geo", "2d")]))
         self.batch = []
         self.counter = 0
+        file_name = 'media_recovery_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
+        self.recovery_file = gzip.open(file_name, 'a')
         self.batch_size = int(config["crawler_config"]["batch_size"])
 
     def check_batch(self):
@@ -58,6 +59,16 @@ class Listener(StreamListener):
                 txt_file.flush()
                 txt_file.close()
                 self.batch = []
+
+    def save(self, content_dict):
+        try:
+            self.writer.save(content_dict)
+        except Exception as exp:
+            print('Unexpected error with mongo: {}\n'.format(str(exp)))
+            self.txt_file.write(str(content_dict))
+            self.txt_file.write("\n")
+            self.txt_file.flush()
+
 
     def on_data(self, data):
         try:
@@ -105,9 +116,10 @@ class Listener(StreamListener):
 
             content_dict["_id"] = content_dict["id"]
             del (content_dict["id"])
-            self.batch.append(content_dict)
+            save(content_dict)
+            # self.batch.append(content_dict)
             # print(result)
-            self.check_batch()
+            # self.check_batch()
             self.counter += 1
             return True
         except BaseException as e:

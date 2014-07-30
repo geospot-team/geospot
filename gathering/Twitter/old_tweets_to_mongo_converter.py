@@ -83,15 +83,14 @@ for filename in files:
     for tweet in gzip.open(filename):
         print(i)
         i = i + 1
-        batch.append(tweet_pipe(tweet))
+        inserted = False
+        while not inserted:
+            try:
+                inserted_ids = writer.save(tweet_pipe(tweet))
+                inserted = True
+            except Exception as exp:
+                print('Unexpected error with mongo: {}\n'.format(str(exp)))
 
-try:
-    inserted_ids = writer.save(batch)
-    batch = [tweet for tweet in batch if tweet["_id"] not in set(inserted_ids)]
-    if len(batch) != 0:
-        print("Something wrong with insert")
-except Exception as exp:
-    print('Unexpected error with mongo: {}\n'.format(str(exp)))
 
 
 
