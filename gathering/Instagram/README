@@ -1,0 +1,12 @@
+Instagram media crawler using mapsplits.
+
+Packages:
+--  python-instagram
+
+Input:
+  instagram_crawler_gzip.py <date1> <date2> <mapsplits_filename, default = 'spb-0.5'>
+
+Crawler collects media in [date2, date1] time interval if date1, date2 are defined
+otherwise data will be collected over the last year
+  
+

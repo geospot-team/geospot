@@ -1,0 +1,11 @@
+Для работы скрипта:
+1) поставить scala (scala-lang.org)
+2) запуск scala OSMParser.scala source.xml result.csv
+
+
+
+
+Скрипт ExtractCoordintates из csv-файла записывает в файл только координаты через пробел. Каждая следующий объект на новой строчке:
+lon lat
+lon lat 
+
