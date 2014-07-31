@@ -40,7 +40,7 @@ class Listener(StreamListener):
         self.writer.ensure_index(([("geo", "2d")]))
         self.batch = []
         self.counter = 0
-        file_name = 'media_recovery_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
+        file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) + '.txt.gz'
         self.recovery_file = gzip.open(file_name, 'a')
         self.batch_size = int(config["crawler_config"]["batch_size"])
 
@@ -51,7 +51,7 @@ class Listener(StreamListener):
                 # self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
             except Exception as exp:
                 print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
-                file_name = 'media_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
+                file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) +   '.txt.gz'
                 txt_file = gzip.open(file_name, 'a')
                 for content_dict in self.batch:
                     txt_file.write(str(content_dict))
