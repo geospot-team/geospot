@@ -116,7 +116,7 @@ class Listener(StreamListener):
 
             content_dict["_id"] = content_dict["id"]
             del (content_dict["id"])
-            save(content_dict)
+            self.save(content_dict)
             # self.batch.append(content_dict)
             # print(result)
             # self.check_batch()
