@@ -59,6 +59,8 @@ class Listener(StreamListener):
                     content_dict[key][el] = content[key][el] 
 
             tweet_sourse = content["source"]
+            content_dict["source"] = "other"
+
             for item in sourse:
                 if item in tweet_sourse:
                     content_dict["source"] = item
@@ -66,8 +68,10 @@ class Listener(StreamListener):
 
             geo = content["geo"]
             if geo != None:
+                content_dict["certain_coords"] = 1
                 content_dict["geo"] = geo["coordinates"]
             else:
+                content_dict["certain_coords"] = 0
                 # 1st method
                 bbox = content["place"]["bounding_box"]["coordinates"][0]
                 content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0])/4, 

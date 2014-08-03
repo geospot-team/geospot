@@ -64,6 +64,8 @@ class InstagramCrawler(object):
         self.writer.ensure_index(([("geo", "2d")]))
         # self.batch = []
         self.counter = 0
+        file_name = 'media_recovery_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
+        txt_file = gzip.open(file_name, 'a')
         # self.batch_size = int(config["crawler_config"]["batch_size"])
         self.map = open(map_splits, "r")
         self.end_time = end_time
@@ -94,50 +96,56 @@ class InstagramCrawler(object):
             # "coordinates": [content["location"]["latitude"], content["location"]["longitude"]]
             # }
             batch.append(content_dict)
-        inserted = False
-        while not inserted:
+
+            for content_dict in self.batch:
+                try:
+                    self.writer.save(content_dict)
+                except Exception as exp:
+                    print('Unexpected error with mongo: {}\n Try add latter'.format(str(exp)))
+                    for content_dict in self.batch:
+                        self.txt_file.write(str(content_dict))
+                        self.txt_file.write("\n")
+                    self.txt_file.flush()
+                    # txt_file.close()
+                    sleep(1)
+
+
+def check_reply(self, result, coords):
+    if len(result) == 100:
+        coords_dict = shift_coords(coords)
+
+        for key in coords_dict:
+            new_coords = coords_dict[key]
+            radius = new_coords[6]
+            result = api.media_search(count=100, lat=new_coords[4], lng=new_coords[5],
+                                      distance=int(radius * 1000),
+                                      min_timestamp=min_date, max_timestamp=max_date)
+            self.check_reply(result, new_coords)
+    else:
+        self.write_content(result)
+
+
+def search(self):
+    while self.current_date > self.end_time:
+        max_date = datetime_to_timestamp(self.current_date)
+        self.current_date -= timedelta(days=1)
+        min_date = datetime_to_timestamp(self.current_date)
+
+        next(self.map)
+        for line in self.map:
+            coords = line.split(' ')
+            radius = float(coords[6])
             try:
-                inserted_ids = self.writer.insert(self.batch, continue_on_error=True)
-                inserted = True
-            except pymongo.OperationFailure as exp:
-                print('Unexpected error with mongo: {}\n Try add latter'.format(str(exp)))
-                sleep(1)
-
-    def check_reply(self, result, coords):
-        if len(result) == 100:
-            coords_dict = shift_coords(coords)
-
-            for key in coords_dict:
-                new_coords = coords_dict[key]
-                radius = new_coords[6]
-                result = api.media_search(count=100, lat=new_coords[4], lng=new_coords[5],
+                result = api.media_search(count=100, lat=coords[4], lng=coords[5],
                                           distance=int(radius * 1000),
                                           min_timestamp=min_date, max_timestamp=max_date)
-                self.check_reply(result, new_coords)
-        else:
-            self.write_content(result)
+                self.check_reply(result, coords)
+            except Exception as e:
+                print(str(e))
+                sleep(50)
 
-    def search(self):
-        while self.current_date > self.end_time:
-            max_date = datetime_to_timestamp(self.current_date)
-            self.current_date -= timedelta(days=1)
-            min_date = datetime_to_timestamp(self.current_date)
-
-            next(self.map)
-            for line in self.map:
-                coords = line.split(' ')
-                radius = float(coords[6])
-                try:
-                    result = api.media_search(count=100, lat=coords[4], lng=coords[5],
-                                              distance=int(radius * 1000),
-                                              min_timestamp=min_date, max_timestamp=max_date)
-                    self.check_reply(result, coords)
-                except Exception as e:
-                    print(str(e))
-                    sleep(50)
-
-            self.change_file()
-            self.map.seek(0)
+        self.change_file()
+        self.map.seek(0)
 
 
 max_date = datetime.now() - timedelta(days=1)

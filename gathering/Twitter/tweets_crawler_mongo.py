@@ -1,3 +1,4 @@
+import gzip
 import json
 import time
 import sys
@@ -5,11 +6,11 @@ import calendar
 from datetime import datetime
 
 import pymongo
-
 import simplejson
 from tweepy import Stream
 from tweepy import OAuthHandler
 from tweepy.streaming import StreamListener
+
 
 config = json.loads(open(sys.argv[1]).read())
 
@@ -39,15 +40,35 @@ class Listener(StreamListener):
         self.writer.ensure_index(([("geo", "2d")]))
         self.batch = []
         self.counter = 0
+        file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) + '.txt.gz'
+        self.recovery_file = gzip.open(file_name, 'a')
         self.batch_size = int(config["crawler_config"]["batch_size"])
 
     def check_batch(self):
         if len(self.batch) > self.batch_size:
             try:
-                inserted_ids = self.writer.insert(self.batch, continue_on_error=True)
-                self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
-            except pymongo.OperationFailure as exp:
-                print('Unexpected error with mongo: {}\n Try add latter'.format(str(exp)))
+                self.writer.save(self.batch)
+                # self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
+            except Exception as exp:
+                print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
+                file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) +   '.txt.gz'
+                txt_file = gzip.open(file_name, 'a')
+                for content_dict in self.batch:
+                    txt_file.write(str(content_dict))
+                    txt_file.write("\n")
+                txt_file.flush()
+                txt_file.close()
+                self.batch = []
+
+    def save(self, content_dict):
+        try:
+            self.writer.save(content_dict)
+        except Exception as exp:
+            print('Unexpected error with mongo: {}\n'.format(str(exp)))
+            self.txt_file.write(str(content_dict))
+            self.txt_file.write("\n")
+            self.txt_file.flush()
+
 
     def on_data(self, data):
         try:
@@ -58,10 +79,13 @@ class Listener(StreamListener):
                 content_dict[el] = content[el]
             for key in to_save:
                 content_dict[key] = {}
-                for el in to_save[key]:
-                    content_dict[key][el] = content[key][el]
+                if content is not None:
+                    for el in to_save[key]:
+                        if content["place"] is not None:
+                            content_dict[key][el] = content[key][el]
 
             tweet_sourse = content["source"]
+            content_dict["source"] = "other"
             for item in sourse:
                 if item in tweet_sourse:
                     content_dict["source"] = item
@@ -69,8 +93,10 @@ class Listener(StreamListener):
 
             geo = content["geo"]
             if geo != None:
+                content_dict["certain_coords"] = 1
                 content_dict["geo"] = geo["coordinates"]
             else:
+                content_dict["certain_coords"] = 0
                 # 1st method
                 bbox = content["place"]["bounding_box"]["coordinates"][0]
                 content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4,
@@ -79,25 +105,27 @@ class Listener(StreamListener):
                 # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"][0]
 
                 # 3rd method
-                #content_dict["geo"] = content["place"]["bounding_box"]["coordinates"]
+                # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"]
 
             content_dict["created_at"] = to_timestamp(content["created_at"])
             content_dict["user"]["created_at"] = to_timestamp(content["user"]["created_at"])
             content_dict["hashtags"] = content["entities"]["hashtags"]
 
-            if content_dict["source"] in ["instagram", "foursquare"]:
+            if content_dict["source"] in ["instagram", "foursquare"] and len(content["entities"]["urls"]) > 0:
                 content_dict["url"] = content["entities"]["urls"][0]["expanded_url"]
 
             content_dict["_id"] = content_dict["id"]
             del (content_dict["id"])
-            self.batch.append(content_dict)
+            self.save(content_dict)
+            # self.batch.append(content_dict)
             # print(result)
-            self.check_batch()
+            # self.check_batch()
             self.counter += 1
             return True
         except BaseException as e:
             print('Failed on_data: ' + str(e))
             time.sleep(1)
+
 
     def on_error(self, status):
         print(status)
