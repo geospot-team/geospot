@@ -3,8 +3,8 @@ from multiprocessing import Pool
 import multiprocessing
 import sys
 import Common
-import FoursquareGrabberStep1
-import FoursquareGrabberStep2Extended
+import search_venues
+import get_venues
 import MultiProcessLogger
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ def firstStepGrabber(args):
     connection = args[2]
     queue = firstStepGrabber.queue
     firstStepWriter = readWriteManager.getFirstStepWriter(queue)
-    FoursquareGrabberStep1.exploreArea(firstStepWriter, connection, searchParameter, queue)
+    search_venues.exploreArea(firstStepWriter, connection, searchParameter, queue)
     firstStepWriter.close()
 
 def firstStepGrabber_init(queue):
@@ -28,7 +28,7 @@ def secondStepGrabber(args):
     connection = args[2]
     queue = secondStepGrabber.queue
     secondStepWriter = readWriteManager.getSecondStepWriter(queue)
-    FoursquareGrabberStep2Extended.grabExtendedInfo(ids, secondStepWriter, connection, queue)
+    get_venues.grabExtendedInfo(ids, secondStepWriter, connection, queue)
     secondStepWriter.close()
 
 def secondStepGrabber_init(queue):
@@ -46,7 +46,7 @@ def collectArea(readWriteManager, connectionsTo4sq, searchParameter):
     log_queue_reader.start()
 
     threadsCount = len(connectionsTo4sq)
-    searchParameters = FoursquareGrabberStep1.splitSearchParameter(searchParameter,
+    searchParameters = search_venues.splitSearchParameter(searchParameter,
                        (searchParameter.northPoint - searchParameter.southPoint)/threadsCount, True)
     args = [(readWriteManager, searchParameters[i], connectionsTo4sq[i]) for i in range(threadsCount)]
     pool = Pool(threadsCount, firstStepGrabber_init, [queue])

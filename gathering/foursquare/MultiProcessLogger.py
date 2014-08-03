@@ -5,8 +5,8 @@ import traceback
 import multiprocessing, threading, logging, sys
 import Collector
 import Common
-import FoursquareGrabberStep1
-import FoursquareGrabberStep2Extended
+import search_venues
+import get_venues
 
 DEFAULT_LEVEL = logging.INFO
 
@@ -36,10 +36,12 @@ class LogQueueReader(threading.Thread):
 
     """
 
-    def __init__(self, queue):
+    def __init__(self, queue, handlers = None, logger_level=logging.INFO):
         threading.Thread.__init__(self)
         self.queue = queue
         self.daemon = True
+        self.handlers = handlers
+        self.logger_level = logger_level
 
     def run(self):
         """read from the queue and write to the log handlers
@@ -56,6 +58,7 @@ class LogQueueReader(threading.Thread):
                 record = self.queue.get()
                 # get the logger for this record
                 logger = logging.getLogger(record.name)
+                self.__check_logger(logger)
                 logger.callHandlers(record)
             except (KeyboardInterrupt, SystemExit):
                 raise
@@ -64,9 +67,15 @@ class LogQueueReader(threading.Thread):
             except:
                 traceback.print_exc(file=sys.stderr)
 
+    def __check_logger(self, logger):
+            if (len(logger.handlers) == 0):
+                logger.setLevel(self.logger_level)
+                for handler in self.handlers:
+                    logger.addHandler(handler)
 
-def init_logger(logger, queue):
-    logger.setLevel(DEFAULT_LEVEL)
+
+def init_logger(logger, logger_level, queue):
+    logger.setLevel(logger_level)
     if (queue != None):
         for handler in logger.handlers:
             # just a check for my sanity
@@ -91,11 +100,11 @@ def configure_loggers():
     logger.setLevel(DEFAULT_LEVEL)
     logger.addHandler(ch)
     
-    logger = logging.getLogger(FoursquareGrabberStep1.__name__)
+    logger = logging.getLogger(search_venues.__name__)
     logger.setLevel(DEFAULT_LEVEL)
     logger.addHandler(ch)
     
-    logger = logging.getLogger(FoursquareGrabberStep2Extended.__name__)
+    logger = logging.getLogger(get_venues.__name__)
     logger.setLevel(DEFAULT_LEVEL)
     logger.addHandler(ch)
 
