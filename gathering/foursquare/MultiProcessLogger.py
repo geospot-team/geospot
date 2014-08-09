@@ -68,10 +68,10 @@ class LogQueueReader(threading.Thread):
                 traceback.print_exc(file=sys.stderr)
 
     def __check_logger(self, logger):
-            if (len(logger.handlers) == 0):
-                logger.setLevel(self.logger_level)
-                for handler in self.handlers:
-                    logger.addHandler(handler)
+        if (len(logger.handlers) == 0):
+            logger.setLevel(self.logger_level)
+            for handler in self.handlers:
+                logger.addHandler(handler)
 
 
 def init_logger(logger, logger_level, queue):

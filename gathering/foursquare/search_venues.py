@@ -1,6 +1,7 @@
 import json
 import multiprocessing
 from datetime import date
+import traceback
 import foursquare
 import logging
 import sys
@@ -58,8 +59,9 @@ class SearchVenues:
                 keyboard_interrupt = True
                 break
             except:
-                self.logger.error('Unexpected error:' + str(sys.exc_info()[0]) + str(sys.exc_info()[1]))
-                self.logger.error(str(self.connection_to_4sq.requests_counter))
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                self.logger.error('Unexpected error ' + str(self.connection_to_4sq.requests_counter) + ':' +
+                                  str(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.connection_to_storage.close()
         end_time = time.time()
         if keyboard_interrupt:
@@ -84,7 +86,7 @@ class SearchVenues:
 
             search_parameters = self.search_parameter.split((self.search_parameter.northPoint - self.search_parameter.southPoint)/threads_count, True)
             args = [(self.mongodb_config, search_parameters[i], self.auth_keys[2*i:2*i+2],
-                    self.timestamp, self.categories) for i in range(threads_count)]
+                    self.timestamp, self.categories, self.logger.level) for i in range(threads_count)]
             pool = multiprocessing.Pool(threads_count, firstStepGrabber_init, [queue])
             logger.info("Starting " + str(threads_count) + " processes for first step...")
             result = pool.map(firstStepGrabber, args)
@@ -114,7 +116,7 @@ def firstStepGrabber( args):
     auth_keys = args[2]
     timestamp = args[3]
     categories = args[4]
-    logger_level = logging.DEBUG#args[5]
+    logger_level = args[5]
     queue = firstStepGrabber_init.queue
     logger = logging.getLogger(__name__)
     MultiProcessLogger.init_logger(logger, logger_level, queue)

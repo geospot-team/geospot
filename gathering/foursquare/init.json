@@ -2,11 +2,19 @@
     "max_threads_count": 5,
     "mongodb": {
         "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-        "database_name": "foursquare",
+        "database_name": "foursquare_full",
         "collection_ids_name": "collection_ids",
-        "collection_last_name": "collection_last",
+
+        "write_time_series": true,
         "collection_time_series_name": "collection_time_series",
+        "time_series_size": 356,
+        "time_series_fields": ["rating", "specials_count", "hereNow_count",
+            "stats_checkinsCount", "stats_usersCount", "stats_tipCount", "mayor_count",
+            "tips_count", "photos_count", "likes_count"],
+
+        "write_full": false,
         "collection_full_name": "collection_full",
+
         "batch_size": 1000
     },
     "logger": {
@@ -57,7 +65,7 @@
     ],
     "steps": {
         "get_categories": {
-            "enabled": "False",
+            "enabled": false,
             "mongodb": {
                 "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
                 "database_name": "foursquare",
@@ -67,7 +75,7 @@
             }
         },
         "search_venues": {
-            "enabled": "False",
+            "enabled": false,
             "north": 60.10,
             "south": 59.79,
             "west": 30.55,
@@ -85,40 +93,16 @@
             }
         },
         "get_venues": {
-            "enabled": "False",
-            "time_series_size": 356,
-            "time_series_fields": ["rating", "specials_count", "hereNow_count",
-                "stats_checkinsCount", "stats_usersCount", "stats_tipCount", "mayor_count",
-                "tips_count", "photos_count", "likes_count"],
+            "enabled": false,
             "extra_fields": ["name"],
             "limit": -1,
             "venues_filter": {
                 "categories_to_exclude": []
             },
-            "mongodb_ids": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "venues_ids",
-                "batch_size": 1000,
-                "erase_before_use": "False"
-            },
-            "mongodb_time_series": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "venues",
-                "batch_size": 1000,
-                "erase_before_use": "False"
-            },
-            "mongodb_full": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "venues_full",
-                "batch_size": 1000,
-                "erase_before_use": "False"
-            }
+            "storage_type": "json"
         },
         "get_next_venues": {
-            "enabled": "False",
+            "enabled": false,
             "mongodb_ids": {
                 "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
                 "database_name": "foursquare",
