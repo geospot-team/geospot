@@ -61,7 +61,7 @@ class InstagramCrawler(object):
         self.current_date = start_time
         self.client = pymongo.MongoClient(config["mongo"]["primary_node"])
         self.writer = self.client[config["mongo"]["database"]][config["mongo"]["collection"]]
-        self.writer.ensure_index(([("geo", "2d")]))
+        self.writer.ensure_index(([("geo", "2dsphere")]))
         # self.batch = []
         self.counter = 0
         file_name = 'media_recovery_' + self.current_date.strftime("%Y-%m-%d_%H_%M_%S") + '.txt.gz'
