@@ -1,0 +1,3 @@
+[submodule "jmll"]
+	path = jmll
+	url = https://github.com/spbsu-ml-community/jmll

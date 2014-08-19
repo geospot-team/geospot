@@ -37,7 +37,7 @@ class Listener(StreamListener):
     def __init__(self):
         self.client = pymongo.MongoClient(config["mongo"]["primary_node"])
         self.writer = self.client[config["mongo"]["database"]][config["mongo"]["collection"]]
-        self.writer.ensure_index(([("geo", "2d")]))
+        self.writer.ensure_index(([("geo", "2dsphere")]))
         self.batch = []
         self.counter = 0
         file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) + '.txt.gz'
