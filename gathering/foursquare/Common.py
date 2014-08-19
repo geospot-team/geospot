@@ -29,7 +29,8 @@ class ConnectionTo4sq:
                                                                  'limit': '50',
                                                                  'intent': 'browse',
                                                                  'ne': search_parameter.to_str_ne(),
-                                                                 'sw': search_parameter.to_str_sw()})
+                                                                 'sw': search_parameter.to_str_sw(),
+                                                                 'v': '20140606'})
                 succeed = True
             except foursquare.RateLimitExceeded:
                 self.__reconnect()
@@ -81,15 +82,13 @@ class ConnectionTo4sq:
 
 
 class SearchParameter:
-    def __init__(self, conf, northPoint=None, eastPoint=None, southPoint=None, westPoint=None, vStep=None, hStep=None,
+    def __init__(self, conf, northPoint=None, eastPoint=None, southPoint=None, westPoint=None,
                  split_rate=None, limit=None):
         if(conf is None):
             self.northPoint = northPoint
             self.eastPoint = eastPoint
             self.southPoint = southPoint
             self.westPoint = westPoint
-            self.vStep = vStep
-            self.hStep = hStep
             self.split_rate = split_rate
             self.limit = limit
         else:
@@ -97,8 +96,6 @@ class SearchParameter:
             self.eastPoint = conf['east']
             self.southPoint = conf['south']
             self.westPoint = conf['west']
-            self.vStep = conf['vStep']
-            self.hStep = conf['hStep']
             self.split_rate = conf['split_rate']
             self.limit = conf['limit']
 
@@ -112,32 +109,30 @@ class SearchParameter:
     def to_str_sw(self):
         return str(self.southPoint) + ',' + str(self.westPoint)
 
-    def split(self, step, horizontal):
+    def split(self, horizontal, split_rate=None):
+        if (split_rate is None):
+            split_rate = self.split_rate
         new_parameters = []
         i = 0
         if (horizontal):
-            split_count = (self.northPoint - self.southPoint) / step
-            while (i < split_count):
+            step = (self.northPoint - self.southPoint) / split_rate
+            while (i < split_rate):
                 new_parameters.append(SearchParameter(None,
                                                       self.southPoint + (i + 1) * step,
                                                       self.eastPoint,
                                                       self.southPoint + i * step,
                                                       self.westPoint,
-                                                      self.vStep,
-                                                      self.hStep,
                                                       self.split_rate,
                                                       self.limit))
                 i += 1
         else:
-            split_count = (self.westPoint - self.eastPoint) / step
-            while (i < split_count):
+            step = (self.westPoint - self.eastPoint) / split_rate
+            while (i < split_rate):
                 new_parameters.append(SearchParameter(None,
                                                       self.northPoint,
                                                       self.eastPoint + i * step,
                                                       self.southPoint,
                                                       self.eastPoint + (i + 1) * step,
-                                                      self.vStep,
-                                                      self.hStep,
                                                       self.split_rate,
                                                       self.limit))
                 i += 1
@@ -177,6 +172,7 @@ class MongodbStorage:
 
     def write_ids(self, row):
         d = dict()
+        d['id'] = row['id']
         d['_id'] = ObjectId(row['id'])
         d['_categoryIds'] = row['_categoryIds']
         self.ids.extend([d])
@@ -185,8 +181,9 @@ class MongodbStorage:
             self.__execute(self.__execute_ids_update)
 
     def get_ids(self, category_filter=None, limit=None):
-        db = self.client['foursquare']
-        coll = db['collection_ids']
+        #db = self.client['foursquare']
+        #coll = db['collection_ids']
+        coll = self.collection_ids
 
         ids = []
         if(limit is not None):
@@ -234,8 +231,11 @@ class MongodbStorage:
             #inserted_ids = self.collection_ids.insert(self.ids)
             bulk = self.collection_ids.initialize_unordered_bulk_op()
             for item in self.ids:
-                id = item['_id']
-                del item['_id']
+                if(item.has_key('_id')):
+                    id = item['_id']
+                    del item['_id']
+                else:
+                    id = ObjectId(item['id'])
                 bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
             self.logger.info('Ids: ' + str(result))

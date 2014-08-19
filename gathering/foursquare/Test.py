@@ -1,6 +1,20 @@
+import json
 from time import sleep
+import foursquare
 from pymongo.errors import OperationFailure, PyMongoError
 import Common
+
+config = json.loads(open('init.json').read())
+connection_strings = config['auth_keys']
+client = foursquare.Foursquare(client_id=connection_strings[0]['client_id'],
+                                       client_secret=connection_strings[0]['client_secret'])
+
+data = client.venues.search(params={'query': '',
+                                                                 'limit': '50',
+                                                                 'intent': 'browse',
+                                                                 'ne': '59.7900000000001,29.734375',
+                                                                 'sw': '59.79,29.7343750002',
+                                                                 'llAcc': '1000000000000'})
 
 
 #connections = Common.read_connections_file("connectionsTo4sq.csv")

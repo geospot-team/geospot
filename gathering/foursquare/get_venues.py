@@ -45,6 +45,7 @@ class GetVenues:
             self.connection_to_storage = Common.MongodbStorage(self.mongodb_config, self.timestamp, self.logger)
         i = 0
         length = len(self.ids)
+        logger.info("Processing " + str(length) + " object ids...")
         keyboard_interrupt = False
         start_time = time.time()
         while(i < length):
@@ -84,8 +85,8 @@ class GetVenues:
             log_queue_reader.start()
 
             self.connection_to_storage = Common.MongodbStorage(self.mongodb_config, self.timestamp, self.logger)
-            ids = self.connection_to_storage.get_ids(limit=1000)
-
+            ids = self.connection_to_storage.get_ids()#(limit=1000)
+            logger.info("Found " + str(len(ids)) + " object ids...")
             ids = self.__chunks(ids, len(ids)/threads_count)
             args = [(self.mongodb_config, ids[i], self.categories, self.timestamp,
                      self.auth_keys[2*i:2*i+2], self.storage_type, self.logger.level) for i in range(threads_count)]
@@ -122,6 +123,10 @@ def secondStepGrabber(args):
 if __name__ == "__main__":
     config = json.loads(open('init.json').read())
     logger = logging.getLogger(__name__)
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
     logger_level = config['logger']['level']
     if(logger_level == 'DEBUG'):
         logger.setLevel(logging.DEBUG)

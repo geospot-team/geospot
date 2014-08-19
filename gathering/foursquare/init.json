@@ -1,7 +1,7 @@
 {
     "max_threads_count": 5,
     "mongodb": {
-        "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
+        "connection_string": "mongodb://54.186.154.34:27017/",
         "database_name": "foursquare_full",
         "collection_ids_name": "collection_ids",
 
@@ -15,7 +15,7 @@
         "write_full": false,
         "collection_full_name": "collection_full",
 
-        "batch_size": 1000
+        "batch_size": 100
     },
     "logger": {
         "level": "DEBUG"
@@ -65,14 +65,7 @@
     ],
     "steps": {
         "get_categories": {
-            "enabled": false,
-            "mongodb": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "categories",
-                "batch_size": 1000,
-                "erase_before_use": "True"
-            }
+            "enabled": false
         },
         "search_venues": {
             "enabled": false,
@@ -80,17 +73,8 @@
             "south": 59.79,
             "west": 30.55,
             "east": 29.65,
-            "vStep": 0.1,
-            "hStep": 0.1,
             "limit": -1,
-            "split_rate":2,
-            "mongodb": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "venues_ids",
-                "batch_size": 1000,
-                "erase_before_use": "True"
-            }
+            "split_rate":9
         },
         "get_venues": {
             "enabled": false,
@@ -99,24 +83,10 @@
             "venues_filter": {
                 "categories_to_exclude": []
             },
-            "storage_type": "json"
+            "storage_type": "mongo"
         },
         "get_next_venues": {
-            "enabled": false,
-            "mongodb_ids": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "venues_ids",
-                "batch_size": 1000,
-                "erase_before_use": "False"
-            },
-            "mongodb": {
-                "connection_string": "mongodb://ec2-54-186-48-9.us-west-2.compute.amazonaws.com:27017/",
-                "database_name": "foursquare",
-                "collection_name": "next_venues",
-                "batch_size": 1000,
-                "erase_before_use": "True"
-            }
+            "enabled": false
         }
     }
 }

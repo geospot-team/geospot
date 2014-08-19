@@ -27,7 +27,7 @@ class SearchVenues:
             self.max_threads_count = config['max_threads_count']
         self.categories = categories
         self.venues_counter = 0
-        self.logger = logger.getChild(str(self.__class__))
+        self.logger = logger
         self.timestamp = timestamp
 
     def start(self):
@@ -37,14 +37,15 @@ class SearchVenues:
         self.connection_to_4sq = Common.ConnectionTo4sq(self.auth_keys)
         self.connection_to_storage = Common.MongodbStorage(self.mongodb_config, self.timestamp, self.logger)
 
-        parameters = self.search_parameter.split(self.search_parameter.hStep, True)
-        parameters = [x for param in parameters for x in param.split(param.vStep, False)]
+        parameters = self.search_parameter.split(True)
+        parameters = [x for param in parameters for x in param.split(False)]
         i = 0
         length = len(parameters)
         keyboard_interrupt = False
         start_time = time.time()
         while (i < length):
             try:
+                self.logger.info(str(i))
                 start_sub_area = time.time()
                 param = parameters[i]
 
@@ -81,10 +82,10 @@ class SearchVenues:
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             ch.setFormatter(formatter)
 
-            log_queue_reader = MultiProcessLogger.LogQueueReader(queue, [ch], logging.DEBUG)
+            log_queue_reader = MultiProcessLogger.LogQueueReader(queue, [ch], self.logger.level)
             log_queue_reader.start()
 
-            search_parameters = self.search_parameter.split((self.search_parameter.northPoint - self.search_parameter.southPoint)/threads_count, True)
+            search_parameters = self.search_parameter.split(True, threads_count)
             args = [(self.mongodb_config, search_parameters[i], self.auth_keys[2*i:2*i+2],
                     self.timestamp, self.categories, self.logger.level) for i in range(threads_count)]
             pool = multiprocessing.Pool(threads_count, firstStepGrabber_init, [queue])
@@ -94,17 +95,22 @@ class SearchVenues:
     def __search_in_area(self, search_parameter):
         rows = self.connection_to_4sq.search(search_parameter)['venues']
         length = len(rows)
-        if length == 50:
-            logger.debug(
-                'Too many objects in area {' + str(search_parameter) + '}' + str(length) + 'of 50 limit')
-            new_parameters = search_parameter.split(
-                (search_parameter.northPoint - search_parameter.southPoint) / search_parameter.split_rate, True)
-            new_parameters = [x for param in new_parameters for x in
-                              param.split((param.westPoint - param.eastPoint) / search_parameter.split_rate, False)]
-            for param in new_parameters:
-                logger.debug('Go deeper: {' + str(param) + '}')
-                self.__search_in_area(param)
-        else:
+        save = True
+        if (length == 50):
+            save = False
+            if ((search_parameter.northPoint - search_parameter.southPoint) < 0.001 and
+                        (search_parameter.westPoint - search_parameter.eastPoint) < 0.001):
+                self.logger.warn('Deepest params: ' + str(search_parameter))
+                save = True
+            else:
+                logger.debug(
+                    'Too many objects in area {' + str(search_parameter) + '}' + str(length) + 'of 50 limit')
+                new_parameters = search_parameter.split(True)
+                new_parameters = [x for param in new_parameters for x in param.split(False)]
+                for param in new_parameters:
+                    logger.debug('Go deeper: {' + str(param) + '}')
+                    self.__search_in_area(param)
+        if (save):
             for row in rows:
                 Common.addCategory(row, self.categories)
                 self.connection_to_storage.write_ids(row)
@@ -131,6 +137,10 @@ if __name__ == "__main__":
     #MultiProcessLogger.configure_loggers()
     config = json.loads(open('init.json').read())
     logger = logging.getLogger(__name__)
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
     logger_level = config['logger']['level']
     if(logger_level == 'DEBUG'):
         logger.setLevel(logging.DEBUG)
