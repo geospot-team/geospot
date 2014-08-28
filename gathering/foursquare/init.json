@@ -2,7 +2,7 @@
     "max_threads_count": 5,
     "mongodb": {
         "connection_string": "mongodb://54.186.154.34:27017/",
-        "database_name": "foursquare_full",
+            "database_name": "foursquare_test_001",
         "collection_ids_name": "collection_ids",
 
         "write_time_series": true,
@@ -12,13 +12,13 @@
             "stats_checkinsCount", "stats_usersCount", "stats_tipCount", "mayor_count",
             "tips_count", "photos_count", "likes_count"],
 
-        "write_full": false,
+        "write_full": true,
         "collection_full_name": "collection_full",
 
         "batch_size": 100
     },
     "logger": {
-        "level": "DEBUG"
+        "level": "INFO"
     },
     "auth_keys": [
         {
