@@ -1,0 +1,3 @@
+run:
+
+./dump.py ${db_name} ${collection}
