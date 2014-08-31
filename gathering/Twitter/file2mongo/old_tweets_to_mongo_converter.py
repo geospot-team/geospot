@@ -16,7 +16,7 @@ to_save = {
     "place": ["id", "url", "bounding_box"]
 }
 
-sourse = ["Web", "iPhone", "iPad", "Android", "instagram", "foursquare"]
+source = ["Web", "iPhone", "iPad", "Android", "instagram", "foursquare"]
 
 
 def to_timestamp(date):
@@ -26,7 +26,6 @@ def to_timestamp(date):
 
 client = pymongo.MongoClient(config["mongo"]["primary_node"])
 writer = client[config["mongo"]["database"]][config["mongo"]["collection"]]
-writer.ensure_index(([("geo", "2d")]))
 files = config["files"]
 
 
@@ -42,23 +41,27 @@ def tweet_pipe(tweet):
                 if content["place"] is not None:
                     content_dict[key][el] = content[key][el]
 
-    tweet_sourse = content["source"]
+    tweet_source = content["source"]
     content_dict["source"] = "other"
-    for item in sourse:
-        if item in tweet_sourse:
+    for item in source:
+        if item in tweet_source:
             content_dict["source"] = item
             break
 
     geo = content["geo"]
     if geo != None:
         content_dict["certain_coords"] = 1
-        content_dict["geo"] = geo["coordinates"]
+        content_dict["geo"] = {}
+        content_dict["geo"]["type"] = "Point"
+        content_dict["geo"]["coordinates"] = geo["coordinates"][::-1]
     else:
         content_dict["certain_coords"] = 0
         # 1st method
         bbox = content["place"]["bounding_box"]["coordinates"][0]
-        content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4,
-                               (bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1]) / 4]
+        content_dict["geo"] = {}
+        content_dict["geo"]["type"] = "Point"
+        content_dict["geo"]["coordinates"] = [(bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1]) / 4,
+                                              (bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4]
         # 2nd method
         # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"][0]
 
@@ -79,6 +82,7 @@ def tweet_pipe(tweet):
 
 i = 0
 batch = []
+
 for filename in files:
     for tweet in gzip.open(filename):
         print(i)
@@ -93,6 +97,4 @@ for filename in files:
 
 
 
-
-
-
+writer.ensure_index(([("geo", "2dsphere")]))
