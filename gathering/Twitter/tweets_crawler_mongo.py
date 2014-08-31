@@ -15,6 +15,7 @@ from tweepy.streaming import StreamListener
 config = json.loads(open(sys.argv[1]).read())
 
 CKEY = config["twitter_auth"]["CKEY"]
+CKEY = config["twitter_auth"]["CKEY"]
 CSECRET = config["twitter_auth"]["CSECRET"]
 ATOKEN = config["twitter_auth"]["ATOKEN"]
 ASECRET = config["twitter_auth"]["ASECRET"]
@@ -51,7 +52,7 @@ class Listener(StreamListener):
                 # self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
             except Exception as exp:
                 print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
-                file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) +   '.txt.gz'
+                file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) + '.txt.gz'
                 txt_file = gzip.open(file_name, 'a')
                 for content_dict in self.batch:
                     txt_file.write(str(content_dict))
@@ -94,13 +95,17 @@ class Listener(StreamListener):
             geo = content["geo"]
             if geo != None:
                 content_dict["certain_coords"] = 1
-                content_dict["geo"] = geo["coordinates"]
+                content_dict["geo"] = {}
+                content_dict["geo"]["type"] = "Point"
+                content_dict["geo"]["coordinates"] = geo["coordinates"][::-1]
             else:
                 content_dict["certain_coords"] = 0
                 # 1st method
                 bbox = content["place"]["bounding_box"]["coordinates"][0]
-                content_dict["geo"] = [(bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4,
-                                       (bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1]) / 4]
+                content_dict["geo"] = {}
+                content_dict["geo"]["type"] = "Point"
+                content_dict["geo"]["coordinates"] = [(bbox[0][1] + bbox[1][1] + bbox[2][1] + bbox[3][1]) / 4,
+                                                      (bbox[0][0] + bbox[1][0] + bbox[2][0] + bbox[3][0]) / 4]
                 # 2nd method
                 # content_dict["geo"] = content["place"]["bounding_box"]["coordinates"][0]
 

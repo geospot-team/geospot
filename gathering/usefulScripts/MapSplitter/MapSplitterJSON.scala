@@ -1,7 +1,9 @@
 #!/bin/sh
 exec scala "$0" "$@"
 !#
+
 import java.io.{BufferedWriter, FileWriter}
+
 /**
  * User: Vasily
  * Date: 21.03.14
@@ -9,15 +11,21 @@ import java.io.{BufferedWriter, FileWriter}
  */
 
 //latitude = широта = угол от экватора
-object MapSplitter extends App {
+object MapSplitterJSON extends App {
 
   case class Coordinate(lat: Double, lon: Double) {
     val getLon = Math.PI * lon / 180
     val getLat = Math.PI * lat / 180
   }
 
+  def convert(angle: Double) = 180 * angle / Math.PI
+
+
   val writer = new BufferedWriter(new FileWriter(args(5)))
-  writer.write("leftLat leftLon rightLat rightLon centerLat centerLon R\n")
+  var result = List[String]()
+  def save(lat: Double, lon: Double) {
+    result = f"($lat, $lon)" :: result
+  }
 
   val radius = 6378
   val sideSize = args(0).toDouble
@@ -34,21 +42,14 @@ object MapSplitter extends App {
       val lon = left.getLon + dx * j
       val centerLat = convert(lat + dy / 2)
       val centerLon = convert(lon + dx / 2)
-      val R = 0.6 * Math.sqrt(2) * sideSize
-      save(convert(lat), convert(lon), convert(lat + dy), convert(lon + dx), centerLat, centerLon, R)
+      save(centerLat, centerLon)
     }
   }
 
-
-  def convert(angle: Double) = 180 * angle / Math.PI
-
-  def save(leftLat: Double, leftLon: Double, rightLat: Double, rightLon: Double, centerLat: Double, centerLon: Double, R: Double) {
-    writer.write(f"$leftLat $leftLon $rightLat $rightLon $centerLat $centerLon $R\n")
-  }
-
+  val resultStr = result.mkString(",")
+  writer.write(f"[$resultStr]")
   writer.flush()
   writer.close()
-
 }
 
-MapSplitter.main(args)
+MapSplitterJSON.main(args)

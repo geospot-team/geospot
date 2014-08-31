@@ -1,0 +1,26 @@
+{
+    "mongo": {
+        "primary_node": "mongodb://localhost:27017/",
+        "database": "geospot",
+        "collection": "twitter_msk"
+    },
+    "files": ["tweets-moscow_2014-06-08_08_20_53.txt.gz", "tweets-moscow_2014-06-25_00_00_11.txt.gz", "tweets-moscow_2014-07-12_00_00_05.txt.gz",
+        "tweets-moscow_2014-06-08_15_43_13.txt.gz", "tweets-moscow_2014-06-26_00_00_00.txt.gz", "tweets-moscow_2014-07-13_00_00_10.txt.gz",
+        "tweets-moscow_2014-06-09_00_00_04.txt.gz", "tweets-moscow_2014-06-27_00_00_07.txt.gz", "tweets-moscow_2014-07-14_00_00_17.txt.gz",
+        "tweets-moscow_2014-06-10_00_00_37.txt.gz", "tweets-moscow_2014-06-28_00_00_07.txt.gz", "tweets-moscow_2014-07-15_00_00_00.txt.gz",
+        "tweets-moscow_2014-06-11_00_00_09.txt.gz", "tweets-moscow_2014-06-28_16_34_07.txt.gz", "tweets-moscow_2014-07-16_00_00_09.txt.gz",
+        "tweets-moscow_2014-06-12_00_00_25.txt.gz", "tweets-moscow_2014-06-29_00_00_03.txt.gz", "tweets-moscow_2014-07-17_00_00_00.txt.gz",
+        "tweets-moscow_2014-06-12_09_40_22.txt.gz", "tweets-moscow_2014-06-29_07_05_31.txt.gz", "tweets-moscow_2014-07-18_00_00_07.txt.gz",
+        "tweets-moscow_2014-06-13_00_00_11.txt.gz", "tweets-moscow_2014-06-30_00_00_01.txt.gz", "tweets-moscow_2014-07-19_00_00_53.txt.gz",
+        "tweets-moscow_2014-06-14_00_00_17.txt.gz", "tweets-moscow_2014-07-01_00_00_31.txt.gz", "tweets-moscow_2014-07-20_00_00_15.txt.gz",
+        "tweets-moscow_2014-06-15_00_00_06.txt.gz", "tweets-moscow_2014-07-02_00_00_02.txt.gz", "tweets-moscow_2014-07-21_00_00_09.txt.gz",
+        "tweets-moscow_2014-06-16_00_00_23.txt.gz", "tweets-moscow_2014-07-03_00_00_33.txt.gz", "tweets-moscow_2014-07-22_00_00_19.txt.gz",
+        "tweets-moscow_2014-06-17_00_00_11.txt.gz", "tweets-moscow_2014-07-04_00_00_29.txt.gz", "tweets-moscow_2014-07-23_00_00_31.txt.gz",
+        "tweets-moscow_2014-06-18_00_00_01.txt.gz", "tweets-moscow_2014-07-05_00_00_01.txt.gz", "tweets-moscow_2014-07-24_00_00_01.txt.gz",
+        "tweets-moscow_2014-06-19_00_00_04.txt.gz", "tweets-moscow_2014-07-06_00_00_06.txt.gz", "tweets-moscow_2014-07-25_00_00_01.txt.gz",
+        "tweets-moscow_2014-06-20_02_00_38.txt.gz", "tweets-moscow_2014-07-07_00_00_09.txt.gz", "tweets-moscow_2014-07-26_00_00_12.txt.gz",
+        "tweets-moscow_2014-06-21_00_00_00.txt.gz", "tweets-moscow_2014-07-08_00_00_04.txt.gz", "tweets-moscow_2014-07-27_00_00_05.txt.gz",
+        "tweets-moscow_2014-06-22_00_00_03.txt.gz", "tweets-moscow_2014-07-09_00_00_07.txt.gz", "tweets-moscow_2014-07-28_00_00_02.txt.gz",
+        "tweets-moscow_2014-06-23_00_00_07.txt.gz", "tweets-moscow_2014-07-10_00_00_10.txt.gz",
+        "tweets-moscow_2014-06-24_00_00_05.txt.gz", "tweets-moscow_2014-07-11_00_00_00.txt.gz"]
+}
