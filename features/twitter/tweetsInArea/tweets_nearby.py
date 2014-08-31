@@ -3,6 +3,7 @@ import gzip
 import json
 import sys
 import time
+import datetime
 
 import pymongo
 
@@ -15,7 +16,8 @@ client = pymongo.MongoClient(config["mongo"]["primary_node"])
 reader = client[config["mongo"]["database"]][config["mongo"]["collection"]]
 
 out = config["result_file"]
-out = gzip.open(out, "w")
+# out = gzip.open(out, "w")
+out = open(out, "w")
 # extraction config alias
 R = config["search_radius"]
 gps = config["gps"]
@@ -36,7 +38,7 @@ def make_geo_query(lon, lat, from_date=config["start_date"], end_date=config["en
     query = {"geo": {
          "$near": {"$geometry": {"type": "Point", "coordinates": [lon, lat]}, "$minDistance": min_distance,
                                 "$maxDistance": max_distance}},
-             "created_at": {"$lte": end_date, "$gte": from_date},
+             "created_at": {"$lte":  datetime.datetime.fromtimestamp(end_date), "$gte":  datetime.datetime.fromtimestamp(from_date)},
              "user.followers_count": {"$lte": robots_threshold}
     }
     # query = "{{geo:{{" \
@@ -57,8 +59,8 @@ for coord in gps:
     query = make_geo_query(lon, lat)
     result = reader.find(query).count()
     out.write("{lon}\t{lat}\t{stat}\n".format(lon=lon, lat=lat, stat=result))
+    out.flush()
 
-out.flush()
 out.close()
 
 print("Working time: %s seconds" % (time.time() - start_time))

@@ -31,7 +31,8 @@ sourse = ["Web", "iPhone", "iPad", "Android", "instagram", "foursquare"]
 
 def to_timestamp(date):
     dt = datetime.strptime(date, "%a %b %d %H:%M:%S +0000 %Y")
-    return calendar.timegm(dt.timetuple())
+    return dt
+    #return calendar.timegm(dt.timetuple())
 
 
 class Listener(StreamListener):
