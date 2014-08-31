@@ -3,6 +3,7 @@ import csv
 import getopt
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from time import sleep, time
@@ -28,7 +29,8 @@ class ConnectionTo4sq:
                                                                  'limit': '50',
                                                                  'intent': 'browse',
                                                                  'ne': search_parameter.to_str_ne(),
-                                                                 'sw': search_parameter.to_str_sw()})
+                                                                 'sw': search_parameter.to_str_sw(),
+                                                                 'v': '20140606'})
                 succeed = True
             except foursquare.RateLimitExceeded:
                 self.__reconnect()
@@ -80,15 +82,13 @@ class ConnectionTo4sq:
 
 
 class SearchParameter:
-    def __init__(self, conf, northPoint=None, eastPoint=None, southPoint=None, westPoint=None, vStep=None, hStep=None,
+    def __init__(self, conf, northPoint=None, eastPoint=None, southPoint=None, westPoint=None,
                  split_rate=None, limit=None):
         if(conf is None):
             self.northPoint = northPoint
             self.eastPoint = eastPoint
             self.southPoint = southPoint
             self.westPoint = westPoint
-            self.vStep = vStep
-            self.hStep = hStep
             self.split_rate = split_rate
             self.limit = limit
         else:
@@ -96,8 +96,6 @@ class SearchParameter:
             self.eastPoint = conf['east']
             self.southPoint = conf['south']
             self.westPoint = conf['west']
-            self.vStep = conf['vStep']
-            self.hStep = conf['hStep']
             self.split_rate = conf['split_rate']
             self.limit = conf['limit']
 
@@ -111,32 +109,30 @@ class SearchParameter:
     def to_str_sw(self):
         return str(self.southPoint) + ',' + str(self.westPoint)
 
-    def split(self, step, horizontal):
+    def split(self, horizontal, split_rate=None):
+        if (split_rate is None):
+            split_rate = self.split_rate
         new_parameters = []
         i = 0
         if (horizontal):
-            split_count = (self.northPoint - self.southPoint) / step
-            while (i < split_count):
+            step = (self.northPoint - self.southPoint) / split_rate
+            while (i < split_rate):
                 new_parameters.append(SearchParameter(None,
                                                       self.southPoint + (i + 1) * step,
                                                       self.eastPoint,
                                                       self.southPoint + i * step,
                                                       self.westPoint,
-                                                      self.vStep,
-                                                      self.hStep,
                                                       self.split_rate,
                                                       self.limit))
                 i += 1
         else:
-            split_count = (self.westPoint - self.eastPoint) / step
-            while (i < split_count):
+            step = (self.westPoint - self.eastPoint) / split_rate
+            while (i < split_rate):
                 new_parameters.append(SearchParameter(None,
                                                       self.northPoint,
                                                       self.eastPoint + i * step,
                                                       self.southPoint,
                                                       self.eastPoint + (i + 1) * step,
-                                                      self.vStep,
-                                                      self.hStep,
                                                       self.split_rate,
                                                       self.limit))
                 i += 1
@@ -148,69 +144,75 @@ class MongodbStorage:
     def __init__(self, config, timestamp, logger):
         self.connection_string = config['connection_string']
         self.timestamp = timestamp
+        self.logger = logger
+        self.batch_size = config['batch_size']
         self.client = MongoClient(self.connection_string)
         self.db = self.client[config['database_name']]
+
         self.collection_ids = self.db[config['collection_ids_name']]
         self.ids = []
-        self.collection_last = self.db[config['collection_last_name']]
-        self.collection_last.ensure_index(([("_geo", "2d")]))
-        self.last = []
+
+        self.write_time_series = config['write_time_series']
+        self.time_series_size = config['time_series_size']
+        self.time_series_fields = config['time_series_fields']
+        self.empty_period = self.__get_empty_period(self.time_series_size)
         self.collection_time_series = self.db[config['collection_time_series_name']]
         self.collection_time_series.ensure_index(([("_geo", "2d")]))
         self.time_series = []
+
+        self.write_full = config['write_full']
         self.collection_full = self.db[config['collection_full_name']]
         self.collection_full.ensure_index(([("_geo", "2d")]))
         self.full = []
-        self.logger = logger.getChild(str(self.__class__))
-        self.batch_size = config['batch_size']
-        self.empty_period = self.__get_empty_period(31)
 
-    def __to_timestamp(sef, dt, epoch=datetime(1970,1,1)):
+    def to_timestamp(sef, dt, epoch=datetime(1970,1,1)):
         td = dt - epoch
         # return td.total_seconds()
         return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 1e6
 
     def write_ids(self, row):
         d = dict()
+        d['id'] = row['id']
         d['_id'] = ObjectId(row['id'])
-        d['categoryIds'] = row['categoryIds']
+        d['_categoryIds'] = row['_categoryIds']
         self.ids.extend([d])
 
         if (len(self.ids) >= self.batch_size):
             self.__execute(self.__execute_ids_update)
 
     def get_ids(self, category_filter=None, limit=None):
+        #db = self.client['foursquare']
+        #coll = db['collection_ids']
+        coll = self.collection_ids
+
         ids = []
         if(limit is not None):
             i = 0
-            for item in self.collection_ids.find():
+            for item in coll.find():
                 if(i==limit):
                     break
                 ids.extend([item['_id']])
                 i+=1
         else:
-            ids = self.collection_ids.distinct('_id')
+            ids = coll.distinct('_id')
         return ids
 
     def write(self, row):
         row['_id'] = ObjectId(row['id'])
         row['_geo'] = [row['location']['lat'], row['location']['lng']]
-        row['_timestamp'] = self.__to_timestamp(self.timestamp)
-        row['_category_ids'] = row['categoryIds']
-        row['_name'] = row['name']
-        self.full.extend([row])
-        #self.last.extend([self.__filter_and_plain_row(row)])
-        #self.time_series.extend([self.__filter_and_plain_row(row, self.timestamp.day)])
+        row['_timestamp'] = self.to_timestamp(self.timestamp)
+        if (self.write_full):
+            self.full.extend([row])
+        if (self.write_time_series):
+            self.time_series.extend([self.__filter_and_plain_row(row, self.timestamp.day)])
+
         if (len(self.full) >= self.batch_size):
             self.__execute(self.__execute_full_update)
-        if (len(self.last) >= self.batch_size):
-            self.__execute(self.__execute_last_update)
         if (len(self.time_series) >= self.batch_size):
             self.__execute(self.__execute_time_series_update)
 
     def flush(self):
         self.__execute(self.__execute_ids_update)
-        self.__execute(self.__execute_last_update)
         self.__execute(self.__execute_full_update)
         self.__execute(self.__execute_time_series_update)
 
@@ -229,7 +231,12 @@ class MongodbStorage:
             #inserted_ids = self.collection_ids.insert(self.ids)
             bulk = self.collection_ids.initialize_unordered_bulk_op()
             for item in self.ids:
-                bulk.find({'_id': item['_id']}).upsert().update({'$set': item})
+                if(item.has_key('_id')):
+                    id = item['_id']
+                    del item['_id']
+                else:
+                    id = ObjectId(item['id'])
+                bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
             self.logger.info('Ids: ' + str(result))
             self.ids = []
@@ -238,7 +245,9 @@ class MongodbStorage:
         if (len(self.last) > 0):
             bulk = self.collection_last.initialize_unordered_bulk_op()
             for item in self.last:
-                bulk.find({'_id': item['_id']}).upsert().update({'$set': item})
+                id = item['_id']
+                del item['_id']
+                bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
             self.logger.info('Last: ' + str(result))
             self.last = []
@@ -247,9 +256,14 @@ class MongodbStorage:
         if (len(self.full) > 0):
             bulk = self.collection_full.initialize_unordered_bulk_op()
             for item in self.full:
-                bulk.find({'_id': item['_id']}).upsert().update({'$set': item})
+                if(item.has_key('_id')):
+                    id = item['_id']
+                    del item['_id']
+                else:
+                    id = ObjectId(item['id'])
+                bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
-            self.logger.info('Full: ' + str(result))
+            self.logger.info('Full: ' + self.__get_str_from_result(result))
             self.full = []
 
     def __execute_time_series_update(self):
@@ -261,23 +275,29 @@ class MongodbStorage:
                 ids_exists.add(item['_id'])
             for item in self.time_series:
                 if item['_id'] not in ids_exists:
-                    insert_items.extend(self.__get_empty_updates_row(item['_id'], self.empty_period))
+                    insert_items.extend([self.__get_empty_updates_row(item)])
             if (len(insert_items) != 0):
                 inserted_ids = self.collection_time_series.insert(insert_items)
                 self.logger.info('Written ' + str(len(inserted_ids)) + ' new time_series')
             bulk = self.collection_time_series.initialize_unordered_bulk_op()
             for item in self.time_series:
-                bulk.find({'_id': item['_id']}).update({'$set': item})
+                if(item.has_key('_id')):
+                    id = item['_id']
+                    del item['_id']
+                else:
+                    id = ObjectId(item['id'])
+                bulk.find({'_id': id}).update({'$set': item})
             result = bulk.execute()
-            self.logger.info('Time series: ' + str(result))
+            self.logger.info('Time series: ' + self.__get_str_from_result(result))
             self.time_series = []
 
     def __filter_and_plain_row(self, row, day=None):
         d = dict()
+        d['id'] = row['id']
         for name, value in row.iteritems():
             if (name.startswith('_')):
                 d[name] = value
-        for field in FIELDS_UPDATES:
+        for field in self.time_series_fields:
             result = row
             sub_fields = field.split('_')
             for subField in sub_fields:
@@ -296,7 +316,10 @@ class MongodbStorage:
 
     def __get_empty_updates_row(self, row):
         d = dict()
-        for name, value in row.iteritems:
+        d['id'] = row['id']
+        for name, value in row.iteritems():
+            if ('.' in name):
+                name = name[:name.index('.')]
             if(name.startswith('_')):
                 d[name] = value
             else:
@@ -309,6 +332,73 @@ class MongodbStorage:
             empty_period[str(i)] = 0
         return empty_period
 
+    def __get_str_from_result(self, result):
+        return 'nUpserted: ' + str(result['nUpserted']) + \
+               ', nMatched: ' + str(result['nMatched'])  + \
+               ', nInserted: ' + str(result['nInserted'])  + \
+               ', nRemoved: ' + str(result['nRemoved'])
+
+#(limit=10000)
+            #file = open('ids', 'w')
+            #ids = file.read()
+            #ids = json.loads(ids)
+            #ids = [str(id) for id in ids]
+            #ids = json.dumps(ids)
+            #file.write(ids)
+            #file.close()
+
+class JsonStorage:
+    def __init__(self, config, timestamp, logger):
+        self.filename_full = 'venues_full_' + str(timestamp.date()) + '_' + str(os.getpid())
+        self.filename_ids = 'venues_ids_' + str(timestamp.date()) + '_' + str(os.getpid())
+        self.writer_full = open(self.filename_full, 'w')
+        self.writer_ids = open(self.filename_ids, 'w')
+        self.logger = logger
+        self.batch_size = config['batch_size']
+        self.counter = 0
+
+    def write_ids(self, row):
+        d = dict()
+        d['id'] = row['id']
+        d['_categoryIds'] = row['_categoryIds']
+        self.writer_ids.write(json.dumps(d) + '/n')
+        self.counter+=1
+
+        if (self.counter >= self.batch_size):
+            self.flush()
+
+    def get_ids(self, category_filter=None, limit=None):
+        file = open('ids', 'r')
+        ids = []
+        id = file.readline()
+        while (id != ''):
+            id = json.loads(id)
+            ids.extend([id])
+            id = file.readline()
+        file.close()
+        return ids
+
+    def write(self, row):
+        row['_timestamp'] = self.to_timestamp(self.timestamp)
+        self.writer_ids.write(json.dumps(row) + '/n')
+        self.counter+=1
+
+        if (self.counter >= self.batch_size):
+            self.flush()
+
+    def flush(self):
+        if (self.writer_full is not None):
+            self.writer_full.flush()
+        if (self.writer_ids is not None):
+            self.writer_ids.flush()
+        self.counter = 0
+
+    def close(self):
+        self.flush()
+        if (self.writer_full is not None):
+            self.writer_full.close()
+        if (self.writer_ids is not None):
+            self.writer_ids.close()
 
 FIELDS_UPDATES = ['rating', 'specials_count', 'hereNow_count',
                   'stats_checkinsCount', 'stats_usersCount', 'stats_tipCount', 'mayor_count',
@@ -379,7 +469,7 @@ def parseArgs(args):
 
 def addCategory(row, categoriesDict):
     categoryIds = [item['id'] for item in row['categories']]
-    row['categoryIds'] = [get_category_path(item, categoriesDict, []) for item in categoryIds]
+    row['_categoryIds'] = [get_category_path(item, categoriesDict, []) for item in categoryIds]
 
 
 def get_categories_dict_with_full_inheritance(categories, parent=None, result=dict()):

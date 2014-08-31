@@ -1,6 +1,20 @@
+import json
 from time import sleep
+import foursquare
 from pymongo.errors import OperationFailure, PyMongoError
 import Common
+
+config = json.loads(open('init.json').read())
+connection_strings = config['auth_keys']
+client = foursquare.Foursquare(client_id=connection_strings[0]['client_id'],
+                                       client_secret=connection_strings[0]['client_secret'])
+
+data = client.venues.search(params={'query': '',
+                                                                 'limit': '50',
+                                                                 'intent': 'browse',
+                                                                 'ne': '59.7900000000001,29.734375',
+                                                                 'sw': '59.79,29.7343750002',
+                                                                 'llAcc': '1000000000000'})
 
 
 #connections = Common.read_connections_file("connectionsTo4sq.csv")
@@ -8,7 +22,8 @@ import Common
 from pymongo import MongoClient
 
 client = MongoClient('ec2-54-186-48-9.us-west-2.compute.amazonaws.com', 27017)
-db = client['foursquare']
+print client.database_names()
+db = client['foursquare_time_series_arrays']
 print db.collection_names()
 #venues = db['collection_ids']
 #venues_updates = db['venues_updates']
@@ -32,30 +47,32 @@ def __get_empty_updates_row(empty_period):
 
 
 def __get_empty_period(count):
-    empty_period = dict()
-    for i in range(count):
-        empty_period[str(i)] = 0
+    empty_period = [0]*count
+    # empty_period = dict()
+    # for i in range(count):
+    #     empty_period[str(i)] = 0
     return empty_period
 
-print db.stats()
+#print db.stats()
 collection_ids = db['collection_ids']
 print 'ids: ' + str(collection_ids.count())
-print collection_ids.stats()
+#print collection_ids.stats()
 collection_full = db['collection_full']
 print 'full: ' + str(collection_full.count())
-print collection_full.stats()
+#print collection_full.stats()
 collection_time_series = db['collection_time_series']
 print 'time_series: ' + str(collection_time_series.count())
-print collection_time_series.stats()
+#print collection_time_series.stats()
 #collection_time_series.drop()
 #for venue in collection_time_series.find():
 #   print venue
 
 i = 0
-max_count = 400000
+max_count = 10000
 batch_size = 1000
 period_size = 31
 empty_period = __get_empty_period(period_size)
+#open('test')
 while i < max_count:
     insert_items = []
     for j in range(batch_size):
