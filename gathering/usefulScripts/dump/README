@@ -1,3 +1,8 @@
+debendencies:
+	lxml (apt-get install python-lxml)
+
+write in dump.py  your login and pswd for YaDisk
+
 run:
 
 ./dump.py ${db_name} ${collection}
