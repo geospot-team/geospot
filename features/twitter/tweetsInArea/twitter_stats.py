@@ -66,7 +66,7 @@ def calc_features(cursor):
     names = []
 
     time_intervals = {"night": {"start": 0, "end": 6}, "morning": {"start": 6, "end": 10},
-                      "day": {"start": 10, "end": 19}, "evening": {"start": 19, "end": 00},
+                      "day": {"start": 10, "end": 19}, "evening": {"start": 19, "end": 25},
                       "all": {"start": 0, "end": 25}}
     sources = {"Apple": {"iPhone", "iPad"}, "Android": {"Android"},
                "All": {"Web", "iPhone", "iPad", "Android", "instagram", "foursquare", "other"},
@@ -100,14 +100,18 @@ def point_stats(point):
     lat = point[0]
     lon = point[1]
     query = make_geo_query(lon, lat)
-    features = calc_features(reader.find(query))
+    cursor = reader.find(query)
+    cursor.batch_size(10000)
+    features = calc_features(cursor)
     # print(features)
     print("Stat time: %s seconds\n" % (time.time() - start_query_time))
     return features
 
 
-result = pd.DataFrame([point_stats(point) for point in gps], index=[point for point in gps])
-result.to_csv(out)
+result_arr = [point_stats(point) for point in gps]
+result_index = [str(point) for point in gps]
+result = pd.DataFrame(result_arr, index=result_index)
+result.to_csv(out,sep="\t")
 print("Working time: %s seconds" % (time.time() - start_time))
 
 
