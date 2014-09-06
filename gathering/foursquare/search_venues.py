@@ -1,6 +1,7 @@
 import json
 import multiprocessing
 from datetime import date
+import random
 import traceback
 import foursquare
 import logging
@@ -45,14 +46,14 @@ class SearchVenues:
         start_time = time.time()
         while (i < length):
             try:
-                self.logger.info(str(i))
+                self.logger.info(str(i) + ' out of ' + str(length))
                 start_sub_area = time.time()
                 param = parameters[i]
 
                 self.__search_in_area(param)
 
                 end_sub_area = time.time()
-                self.logger.info('Area:{' + str(param) + '}...Done. It took ' + str(
+                self.logger.debug('Area:{' + str(param) + '}...Done. It took ' + str(
                     end_sub_area - start_sub_area) + ' seconds. ' +
                                  'Total requests count:' + str(self.connection_to_4sq.requests_counter))
                 i += 1
@@ -74,14 +75,14 @@ class SearchVenues:
 
     def __run_in_parallel(self, threads_count):
         if(threads_count == 1):
+            #r = random.random()
+            #time.sleep(10*r)
             self.__run()
         else:
             #threads_count = 1
             queue = multiprocessing.Queue()
             ch = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            ch.setFormatter(formatter)
-
+            ch.setFormatter(MultiProcessLogger.formatter)
             log_queue_reader = MultiProcessLogger.LogQueueReader(queue, [ch], self.logger.level)
             log_queue_reader.start()
 
@@ -138,8 +139,7 @@ if __name__ == "__main__":
     config = json.loads(open('init.json').read())
     logger = logging.getLogger(__name__)
     ch = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
+    ch.setFormatter(MultiProcessLogger.formatter)
     logger.addHandler(ch)
     logger_level = config['logger']['level']
     if(logger_level == 'DEBUG'):

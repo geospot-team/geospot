@@ -238,7 +238,7 @@ class MongodbStorage:
                     id = ObjectId(item['id'])
                 bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
-            self.logger.info('Ids: ' + str(result))
+            self.logger.debug('Ids: ' + str(result))
             self.ids = []
 
     def __execute_last_update(self):
@@ -249,7 +249,7 @@ class MongodbStorage:
                 del item['_id']
                 bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
-            self.logger.info('Last: ' + str(result))
+            self.logger.debug('Last: ' + str(result))
             self.last = []
 
     def __execute_full_update(self):
@@ -263,18 +263,18 @@ class MongodbStorage:
                     id = ObjectId(item['id'])
                 bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
-            self.logger.info('Full: ' + self.__get_str_from_result(result))
+            self.logger.debug('Full: ' + self.__get_str_from_result(result))
             self.full = []
 
     def __execute_time_series_update(self):
         if (len(self.time_series) > 0):
-            ids = [x['_id'] for x in self.time_series]
+            ids = [ObjectId(x['id']) for x in self.time_series]
             ids_exists = set([])
             insert_items = []
             for item in self.collection_time_series.find({'_id': {'$in': ids}}, {'_ids': 1}):
                 ids_exists.add(item['_id'])
             for item in self.time_series:
-                if item['_id'] not in ids_exists:
+                if ObjectId(item['id']) not in ids_exists:
                     insert_items.extend([self.__get_empty_updates_row(item)])
             if (len(insert_items) != 0):
                 inserted_ids = self.collection_time_series.insert(insert_items)
@@ -288,7 +288,7 @@ class MongodbStorage:
                     id = ObjectId(item['id'])
                 bulk.find({'_id': id}).update({'$set': item})
             result = bulk.execute()
-            self.logger.info('Time series: ' + self.__get_str_from_result(result))
+            self.logger.debug('Time series: ' + self.__get_str_from_result(result))
             self.time_series = []
 
     def __filter_and_plain_row(self, row, day=None):
@@ -308,7 +308,7 @@ class MongodbStorage:
                     break
             if (result is not None):
                 if (day is not None):
-                    field = field + '.' + str(day)
+                    field = field + '.' + str(day - 1)
                 d[field] = result
             # else:
             #     self.logger.warning('Field \'' + str(field) + '\' does not exists')
