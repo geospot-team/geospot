@@ -77,12 +77,14 @@ def calc_features(cursor):
     }
 
     for time_interval, time_interval_config in time_intervals.iteritems():
-        df = pd.DataFrame()
+        df_time = pd.DataFrame()
         if data.shape[0] != 0:
-            df = data[data["created_at"].apply(lambda timestamp: timestamp_filter(timestamp, time_interval_config))]
+            df_time = data[
+                data["created_at"].apply(lambda timestamp: timestamp_filter(timestamp, time_interval_config))]
         for source, source_config in sources.iteritems():
-            if df.shape[0] != 0:
-                df = df[df["source"].apply(lambda src: source_filter(src, source_config))]
+            df = pd.DataFrame()
+            if df_time.shape[0] != 0:
+                df = df_time[df_time["source"].apply(lambda src: source_filter(src, source_config))]
             features.append(df.shape[0])
             names.append("{}_{}".format(time_interval, source))
             if df.shape[0] != 0:
