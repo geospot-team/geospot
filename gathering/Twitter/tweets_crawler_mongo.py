@@ -2,7 +2,6 @@ import gzip
 import json
 import time
 import sys
-import calendar
 from datetime import datetime
 
 import pymongo
@@ -26,13 +25,13 @@ to_save = {
     "place": ["id", "url", "bounding_box"]
 }
 
-sourse = ["Web", "iPhone", "iPad", "Android", "instagram", "foursquare"]
+source = ["Web", "iPhone", "iPad", "Android", "instagram", "foursquare"]
 
 
 def to_timestamp(date):
     dt = datetime.strptime(date, "%a %b %d %H:%M:%S +0000 %Y")
     return dt
-    #return calendar.timegm(dt.timetuple())
+    # return calendar.timegm(dt.timetuple())
 
 
 class Listener(StreamListener):
@@ -86,15 +85,15 @@ class Listener(StreamListener):
                         if content["place"] is not None:
                             content_dict[key][el] = content[key][el]
 
-            tweet_sourse = content["source"]
+            tweet_source = content["source"]
             content_dict["source"] = "other"
-            for item in sourse:
-                if item in tweet_sourse:
+            for item in source:
+                if item in tweet_source:
                     content_dict["source"] = item
                     break
 
             geo = content["geo"]
-            if geo != None:
+            if geo is not None:
                 content_dict["certain_coords"] = 1
                 content_dict["geo"] = {}
                 content_dict["geo"]["type"] = "Point"

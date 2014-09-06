@@ -58,11 +58,11 @@ class Listener(StreamListener):
                 for el in to_save[key]:
                     content_dict[key][el] = content[key][el] 
 
-            tweet_sourse = content["source"]
+            tweet_source = content["source"]
             content_dict["source"] = "other"
 
             for item in sourse:
-                if item in tweet_sourse:
+                if item in tweet_source:
                     content_dict["source"] = item
                     break
 
