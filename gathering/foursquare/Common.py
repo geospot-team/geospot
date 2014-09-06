@@ -204,7 +204,7 @@ class MongodbStorage:
         if (self.write_full):
             self.full.extend([row])
         if (self.write_time_series):
-            self.time_series.extend([self.__filter_and_plain_row(row, self.timestamp.day)])
+            self.time_series.extend([self.__filter_and_plain_row(row, self.timestamp.timetuple().tm_yday)])
 
         if (len(self.full) >= self.batch_size):
             self.__execute(self.__execute_full_update)

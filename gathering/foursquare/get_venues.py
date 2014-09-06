@@ -50,6 +50,7 @@ class GetVenues:
         start_time = time.time()
         while(i < length):
             try:
+                self.logger.info(str(i) + ' out of ' + str(length))
                 id = self.ids[i]
                 row = self.connection_to_4sq.get_venue(id)['venue']
                 Common.addCategory(row, self.categories)
@@ -78,8 +79,7 @@ class GetVenues:
             #threads_count = 1
             queue = multiprocessing.Queue()
             ch = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-            ch.setFormatter(formatter)
+            ch.setFormatter(MultiProcessLogger.formatter)
 
             log_queue_reader = MultiProcessLogger.LogQueueReader(queue, [ch], self.logger.level)
             log_queue_reader.start()
@@ -124,8 +124,7 @@ if __name__ == "__main__":
     config = json.loads(open('init.json').read())
     logger = logging.getLogger(__name__)
     ch = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    ch.setFormatter(formatter)
+    ch.setFormatter(MultiProcessLogger.formatter)
     logger.addHandler(ch)
     logger_level = config['logger']['level']
     if(logger_level == 'DEBUG'):

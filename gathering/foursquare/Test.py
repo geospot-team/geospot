@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 from time import sleep
 import foursquare
@@ -20,6 +21,9 @@ data = client.venues.search(params={'query': '',
 #connections = Common.read_connections_file("connectionsTo4sq.csv")
 
 from pymongo import MongoClient
+
+day_of_year = datetime.now().timetuple().tm_yday
+print(day_of_year)
 
 client = MongoClient('ec2-54-186-48-9.us-west-2.compute.amazonaws.com', 27017)
 print client.database_names()
