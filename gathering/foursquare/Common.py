@@ -142,26 +142,29 @@ class SearchParameter:
 
 class MongodbStorage:
     def __init__(self, config, timestamp, logger):
-        self.connection_string = config['connection_string']
+        config_toku = config['mongodb_toku']
+        config_mongo = config['mongodb_mongo']
         self.timestamp = timestamp
         self.logger = logger
         self.batch_size = config['batch_size']
-        self.client = MongoClient(self.connection_string)
-        self.db = self.client[config['database_name']]
+        self.client_toku = MongoClient(config_toku['connection_string'])
+        self.db_toku = self.client_toku[config_toku['database_name']]
+        self.client_mongo = MongoClient(config_mongo['connection_string'])
+        self.db_mongo = self.client_mongo[config_mongo['database_name']]
 
-        self.collection_ids = self.db[config['collection_ids_name']]
+        self.collection_ids = self.db_mongo[config_mongo['collection_ids_name']]
         self.ids = []
 
-        self.write_time_series = config['write_time_series']
-        self.time_series_size = config['time_series_size']
-        self.time_series_fields = config['time_series_fields']
+        self.write_time_series = config_toku['write_time_series']
+        self.time_series_size = config_toku['time_series_size']
+        self.time_series_fields = config_toku['time_series_fields']
         self.empty_period = self.__get_empty_period(self.time_series_size)
-        self.collection_time_series = self.db[config['collection_time_series_name']]
+        self.collection_time_series = self.db_toku[config_toku['collection_time_series_name']]
         self.collection_time_series.ensure_index(([("_geo", "2d")]))
         self.time_series = []
 
-        self.write_full = config['write_full']
-        self.collection_full = self.db[config['collection_full_name']]
+        self.write_full = config_toku['write_full']
+        self.collection_full = self.db_toku[config_toku['collection_full_name']]
         self.collection_full.ensure_index(([("_geo", "2d")]))
         self.full = []
 
@@ -173,6 +176,7 @@ class MongodbStorage:
     def write_ids(self, row):
         d = dict()
         d['id'] = row['id']
+        d['_geo'] = [row['location']['lng'], row['location']['lat']]
         d['_id'] = ObjectId(row['id'])
         d['_categoryIds'] = row['_categoryIds']
         self.ids.extend([d])
@@ -199,7 +203,7 @@ class MongodbStorage:
 
     def write(self, row):
         row['_id'] = ObjectId(row['id'])
-        row['_geo'] = [row['location']['lat'], row['location']['lng']]
+        row['_geo'] = [row['location']['lng'], row['location']['lat']]
         row['_timestamp'] = self.to_timestamp(self.timestamp)
         if (self.write_full):
             self.full.extend([row])
@@ -218,7 +222,8 @@ class MongodbStorage:
 
     def close(self):
         self.flush()
-        self.client.close()
+        self.client_mongo.close()
+        self.client_toku.close()
 
     def __execute(self, func):
         try:

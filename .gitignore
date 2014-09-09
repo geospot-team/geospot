@@ -3,3 +3,6 @@ algorithms/YetiRank/.idea/*
 algorithms/YetiRank/project/*
 algorithms/YetiRank/target/*
 .idea/*
+/gathering/foursquare/.idea
+
+/gathering/foursquare/*.pyc
