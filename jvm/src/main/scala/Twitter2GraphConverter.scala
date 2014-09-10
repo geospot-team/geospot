@@ -45,14 +45,14 @@ class TwitterData {
     }
     if (tweets.size != 0)
       println(tweets.head.toString)
-    builder.clear()
+//    builder.clear()
   }
 }
 
 
 object Twitter2GraphConverter extends App() {
   val bsonFactory = new BsonFactory()
-  bsonFactory.enable(BsonParser.Feature.HONOR_DOCUMENT_LENGTH)
+//  bsonFactory.enable(BsonParser.Feature.HONOR_DOCUMENT_LENGTH)
   val input = new FileInputStream(new File(args(0)))
   var parser = bsonFactory.createParser(input)
   parser.isExpectedStartArrayToken
@@ -99,23 +99,11 @@ object Twitter2GraphConverter extends App() {
       val fieldName = parser.getCurrentName
       parser.nextToken()
       fieldName match {
-        case "_id" | "url" | "text" => {
-          parser.skipChildren()
-        }
         case "created_at" => {
           data.builder.timestamp = parser.getEmbeddedObject.asInstanceOf[Date].getTime
         }
-        case "hashtags" => {
-          parser.skipChildren()
-        }
         case "source" => {
           data.builder.source = parser.getText
-        }
-        case "place" => {
-          parser.skipChildren()
-        }
-        case "bounding_box" => {
-          parser.skipChildren()
         }
         case "user" => {
           parseUser()
@@ -132,8 +120,11 @@ object Twitter2GraphConverter extends App() {
         }
       }
     }
-//    parser.clearCurrentToken()
-    parser = bsonFactory.createParser(input)
+    parser.clearCurrentToken()
+//    parser = bsonFactory.createParser(input)
     parser.nextToken()
   }
+
+  parser.close()
+  print("done")
 }
