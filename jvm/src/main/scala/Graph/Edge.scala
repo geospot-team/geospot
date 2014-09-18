@@ -22,7 +22,6 @@ trait Edge {
     }
 
   }
-
 }
 
 case class EdgeImp(from: Vertex, to: Vertex,override val weight: Double) extends Edge

@@ -6,5 +6,6 @@ package Graph
  * Time: 21:02
  */
 
-trait EdgeExtractor[Source] extends (Source => List[Edge]) {
+trait EdgeExtractor[Source]  {
+  def extract(source : Source) : List[Edge]
 }

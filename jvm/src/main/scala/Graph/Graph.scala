@@ -10,6 +10,7 @@ trait Graph {
 
   def add(edge: Edge): Graph
 
-
   def save(filename: String)
 }
+
+
