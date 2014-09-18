@@ -14,9 +14,8 @@ trait Edge {
 
   override def equals(other: Any) = {
     other match {
-      case otherEdge: Edge => {
+      case otherEdge: Edge =>
         otherEdge.from.equals(from) && otherEdge.to.equals(to) && otherEdge.weight == weight
-      }
       case _ =>
         false
     }

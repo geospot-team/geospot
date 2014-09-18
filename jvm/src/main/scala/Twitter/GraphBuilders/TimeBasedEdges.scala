@@ -42,15 +42,10 @@ trait SumEdgeWeightGraph extends Factory[Graph] {
 
     override def save(filename: String): Unit = {
       val writer = new BufferedWriter(new FileWriter(filename))
-      edges.groupBy(_.from).foreach({ case (from, vertexEdges) => {
-        vertexEdges.groupBy(_.to).foreach({ case (to, duplicates) => {
-          val fromId = from.vertex
-          val toId = to.vertex
+      edges.groupBy(edge => (edge.from.vertex,edge.to.vertex)).foreach( {
+        case ((fromId,toId), duplicates) =>
           val weight = duplicates.foldLeft(0.0)(_ + _.weight)
           writer.write(f"$fromId\t$toId\t$weight\n")
-        }
-        })
-      }
       })
       writer.flush()
       writer.close()
