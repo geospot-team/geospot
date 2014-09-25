@@ -25,12 +25,17 @@ public class FloatArrayListBenchmark extends TestCase {
   }
 
   public static boolean nearOptimized(float lat, float lon, float dist) {
-    if (110.567 * Math.abs(lat - destLat * 180 / Math.PI) > dist)
+    //optimization hacks
+    final double lowerLonDist = 110.567 * Math.abs(lat - destLat * 180 / Math.PI);
+    if (lowerLonDist> dist)
       return false;
     lat *= Math.PI / 180;
     lon *= Math.PI / 180;
     final double latCos = Math.cos(lat);
-    if (earthRadius * latCos * Math.abs(lon - destLon) > dist)
+    final double lowerLatDist = earthRadius * latCos * Math.abs(lon - destLon);
+    if (lowerLatDist > dist)
+      return false;
+    if (lowerLatDist * lowerLatDist + lowerLonDist * lowerLonDist > dist * dist)
       return false;
     final double latSin = Math.sqrt(1 - latCos * latCos);
     final double lonDist = Math.abs(lon - destLon);
