@@ -31,6 +31,7 @@ public class GeoHashCLI {
 
     try {
       BufferedWriter writer = new BufferedWriter(new FileWriter(args[1]));
+      writer.write("{");
       for (int i = 0; i < locationCount; ++i) {
         final double lat = scanner.nextDouble();
         final double lon = scanner.nextDouble();
@@ -39,6 +40,7 @@ public class GeoHashCLI {
                 + (i + 1 < locationCount ? ",\n" : "\n"));
 
       }
+      writer.write("}");
       writer.flush();
       writer.close();
     } catch (Exception e) {
