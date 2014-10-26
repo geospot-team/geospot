@@ -27,7 +27,6 @@ trait TimeBasedEdges extends EdgeExtractor[Seq[Tweet]] {
     timeSortedTweets.tail.foldLeft(timeSortedTweets.head)(edgeFromTweets)
     edges
   }
-
 }
 
 

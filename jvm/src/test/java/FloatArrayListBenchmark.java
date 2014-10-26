@@ -27,7 +27,7 @@ public class FloatArrayListBenchmark extends TestCase {
   public static boolean nearOptimized(float lat, float lon, float dist) {
     //optimization hacks
     final double lowerLonDist = 110.567 * Math.abs(lat - destLat * 180 / Math.PI);
-    if (lowerLonDist> dist)
+    if (lowerLonDist > dist)
       return false;
     lat *= Math.PI / 180;
     lon *= Math.PI / 180;
@@ -90,7 +90,6 @@ public class FloatArrayListBenchmark extends TestCase {
       int N = 100;
       for (int iter = 0; iter < N; ++iter) {
         TFloatArrayList objects = generateObjects((int) Math.pow(10, degree), rand);
-        checkNear(1.f, objects);
         long startTime = System.currentTimeMillis();
         findNear(1f, objects);
         meanTime += System.currentTimeMillis() - startTime;
@@ -99,4 +98,17 @@ public class FloatArrayListBenchmark extends TestCase {
       System.out.println(String.format("For degree 10^%d linear search mean time is %f ms", degree, meanTime));
     }
   }
+
+  public void testNear() {
+    Random rand = new Random();
+
+    for (int degree = 3; degree < 6; ++degree) {
+      int N = 100;
+      for (int iter = 0; iter < N; ++iter) {
+        TFloatArrayList objects = generateObjects((int) Math.pow(10, degree), rand);
+        checkNear(1.f, objects);
+      }
+    }
+  }
+
 }
