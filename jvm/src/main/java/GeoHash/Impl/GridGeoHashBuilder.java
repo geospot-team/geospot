@@ -12,7 +12,7 @@ import gnu.trove.TLongArrayList;
 public class GridGeoHashBuilder implements GeoHashBuilder {
   private Grid grid;
 
-  GridGeoHashBuilder(double minLat, double minLon, double maxLat, double maxLon, int bins) {
+  public GridGeoHashBuilder(double minLat, double minLon, double maxLat, double maxLon, int bins) {
     this.grid = new Grid(minLat, minLon, maxLat, maxLon, bins);
   }
 

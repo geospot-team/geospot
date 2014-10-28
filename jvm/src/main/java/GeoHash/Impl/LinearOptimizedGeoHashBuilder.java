@@ -8,7 +8,7 @@ import gnu.trove.TLongArrayList;
  * Created by noxoomo on 23/10/14.
  */
 
-public class LinearGeoHashBuilder implements GeoHashBuilder {
+public class LinearOptimizedGeoHashBuilder implements GeoHashBuilder {
   private TDoubleArrayList coordinates = new TDoubleArrayList();
   private TLongArrayList ids = new TLongArrayList();
   @Override
@@ -48,16 +48,26 @@ public class LinearGeoHashBuilder implements GeoHashBuilder {
       return result.toNativeArray();
     }
 
-    private boolean nearOptimized(double lat, double lon, double destLat, double destLon, double dist) {
+
+    private  boolean nearOptimized(double lat, double lon, double destLat, double destLon, double dist) {
+      //optimization hacks
+      final double lowerLonDist = 110 * 180 / Math.PI * Math.abs(lat - destLat);
+      if (lowerLonDist > dist)
+        return false;
       final double latCos = Math.cos(lat);
+      final double lowerLatDist = earthRadius * latCos * Math.abs(lon - destLon);
+      if (lowerLatDist > dist)
+        return false;
+      if (lowerLatDist * lowerLatDist + lowerLonDist * lowerLonDist > dist * dist)
+        return false;
       final double latSin = Math.sqrt(1 - latCos * latCos);
       final double lonDist = Math.abs(lon - destLon);
       final double destLatSin = Math.sin(destLat);
       final double destLatCos = Math.sqrt(1 - destLatSin * destLatSin);
       final double temp = latSin * destLatSin + latCos * destLatCos * Math.cos(lonDist);
-      return (GeoUtils.earthRadius * Math.acos(temp)) < dist;
+      return temp >  Math.cos(dist / GeoUtils.earthRadius);
+//      return  (earthRadius * Math.acos(temp)) < dist;
     }
-//
   }
 
 }

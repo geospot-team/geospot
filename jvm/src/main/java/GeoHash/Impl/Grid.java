@@ -8,9 +8,10 @@ import gnu.trove.TLongArrayList;
 /**
  * Created by noxoomo on 26/10/14.
  */
+//TODO:  all hacks may be wrong for all earth. but for spb and moscow  with small distance should work =)
 public class Grid implements GeoHashBuilder, GeoHash {
-  final double minLat;
-  final double minLon;
+  final double leftBoxLat;
+  final double leftBoxLon;
   final double maxLat;
   final double maxLon;
   final int binsCount;
@@ -18,31 +19,32 @@ public class Grid implements GeoHashBuilder, GeoHash {
   final double lonOffset;
   final double latOffset;
 
-  Grid(double minLat, double minLon, double maxLat, double maxLon, int binsCount) {
-    this.minLat = minLat;
-    this.minLon = minLon;
+  Grid(double leftBoxLat, double leftBoxLon, double maxLat, double maxLon, int binsCount) {
+    this.leftBoxLat = leftBoxLat;
+    this.leftBoxLon = leftBoxLon;
     this.maxLat = maxLat;
     this.maxLon = maxLon;
     this.binsCount = binsCount;
     this.bins = new Bin[binsCount * binsCount + 1]; //last bin — all othere points
-    this.latOffset = (maxLat - minLat) / binsCount;
-    this.lonOffset = (maxLon - minLon) / binsCount;
+    for (int i = 0; i < binsCount * binsCount + 1; ++i) {
+      bins[i] = new Bin();
+    }
+    this.latOffset = (maxLat - leftBoxLat) / binsCount;
+    this.lonOffset = (maxLon - leftBoxLon) / binsCount;
   }
 
 
   private int getBin(int latBin, int lonBin) {
-
     return latBin * binsCount + lonBin;
   }
 
   @Override
   public boolean add(long id, double lat, double lon) {
-    if ((lat < minLat || lat > maxLat) || (lon < minLon || lon > maxLon)) {
+    if ((lat < leftBoxLat || lat > maxLat) || (lon < leftBoxLon || lon > maxLon)) {
       return bins[binsCount * binsCount].add(id, lat, lon);
     }
-
-    final int latBin = (int) ((lat - minLat) / (latOffset));
-    final int lonBin = (int) ((lon - minLat) / (lonOffset));
+    final int latBin = (int) ((lat - leftBoxLat) / (latOffset));
+    final int lonBin = (int) ((lon - leftBoxLon) / (lonOffset));
     return bins[getBin(latBin, lonBin)].add(id, lat, lon);
 
   }
@@ -69,40 +71,76 @@ public class Grid implements GeoHashBuilder, GeoHash {
     }
   }
 
+  public double upperBoundDist(double lat, double lon, int bin) {
+    int latBin = bin / binsCount;
+    int lonBin = bin - latBin * binsCount;
+    double minLatDiff = Math.min(Math.abs(lat - leftBoxLat - latBin * latOffset), Math.abs(lat - leftBoxLat - (latBin + 1) * latOffset));
+    double minLonDiff = Math.min(Math.abs(lon - leftBoxLon - lonBin * lonOffset), Math.abs(lon - leftBoxLon - (lonBin + 1) * lonOffset)) * Math.PI / 180;
+    final double minLonDist = GeoUtils.earthRadius * minLatDiff * Math.PI / 180;
+    double minlat = Math.max(lat, leftBoxLat + latBin * latOffset) * Math.PI / 180;
+    final double latCos = Math.cos(minlat);
+    final double upperLatDist = GeoUtils.earthRadius * latCos * minLonDiff;
+    return Math.min(upperLatDist, minLonDist);
+  }
+
+  private byte type(double lat, double lon, int bin, double dist) {
+    int latBin = bin / binsCount;
+    int lonBin = bin - latBin * binsCount;
+
+    double maxLatDiff = Math.max(Math.abs(lat - leftBoxLat - latBin * latOffset), Math.abs(lat - leftBoxLat - (latBin + 1) * latOffset));
+    double maxLonDiff = Math.max(Math.abs(lon - leftBoxLon - lonBin * lonOffset), Math.abs(lon - leftBoxLon - (lonBin + 1) * lonOffset)) * Math.PI / 180;
+    final double maxLonDist = GeoUtils.earthRadius * maxLatDiff * Math.PI / 180;
+    final double maxlat = Math.min(lat, leftBoxLat + latBin * latOffset) * Math.PI / 180;
+    final double maxLatCos = Math.cos(maxlat);
+    final double maxLatDist = GeoUtils.earthRadius * maxLatCos * maxLonDiff;
+    if (maxLonDist * maxLonDist + maxLatDist * maxLatDist < dist * dist) {
+      return (byte) 1;
+    }
+    double minLatDiff = Math.min(Math.abs(lat - leftBoxLat - latBin * latOffset), Math.abs(lat - leftBoxLat - (latBin + 1) * latOffset));
+    double minLonDiff = Math.min(Math.abs(lon - leftBoxLon - lonBin * lonOffset), Math.abs(lon - leftBoxLon - (lonBin + 1) * lonOffset)) * Math.PI / 180;
+    final double minLonDist = GeoUtils.earthRadius * minLatDiff * Math.PI / 180;
+    double minlat = Math.max(lat, leftBoxLat + latBin * latOffset) * Math.PI / 180;
+    final double latCos = Math.cos(minlat);
+    final double upperLatDist = GeoUtils.earthRadius * latCos * minLonDiff;
+    return (byte) (Math.min(upperLatDist, minLonDist) < dist ? 2 : 0);
+  }
+
   //0 don't check
   //1 confidence
   //2 to check
   public FilterResult filterBins(double lat, double lon, double dist) {
-    final int latBin = (int) ((lat - minLat) / (latOffset));
-    final int lonBin = (int) ((lon - minLat) / (lonOffset));
+    final int latBin = (int) ((lat - leftBoxLat) / (latOffset));
+    final int lonBin = (int) ((lon - leftBoxLon) / (lonOffset));
 
-    int minLatBin = binsCount;
-    int minLonBin = binsCount;
-    int maxLatBin = -1;
-    int maxLonBin = -1;
+    int minLatBin = latBin;
+    int minLonBin = lonBin;
+    int maxLatBin = latBin;
+    int maxLonBin = lonBin;
 
     byte[] filter = new byte[binsCount * binsCount + 1];
 
-    filter[binsCount * binsCount + 1] = 2;
+    filter[binsCount * binsCount] = 2;
     filter[getBin(latBin, lonBin)] = 2;
 
-    for (int i = latBin + 1; i < binsCount; ++i) {
-      for (int j = lonBin + 1; j < binsCount; ++j) {
-        double maxLon = lon + lonOffset * (j + 1);
-        double maxLat = lat + latOffset + (i + 1);
-        if (GeoUtils.distance(lat, lon, maxLat, maxLon) < dist) {
-          filter[getBin(i, j)] = 2;
+    for (int i = latBin; i < binsCount; ++i) {
+      for (int j = lonBin; j < binsCount; ++j) {
+        int bin = getBin(i, j);
+        final byte t = type(lat,lon,bin,dist);
+        if (t != 0) {
+          filter[bin] = t;
           maxLatBin = i > maxLatBin ? i : maxLatBin;
           maxLonBin = j > maxLonBin ? j : maxLonBin;
         } else {
           break;
         }
       }
-      for (int j = lonBin - 1; j > 0; --j) {
-        double minLon = lon + lonOffset * i;
-        double maxLat = lat + latOffset + (i + 1);
-        if (GeoUtils.distance(lat, lon, maxLat, minLon) < dist) {
-          filter[getBin(i, j)] = 2;
+      for (int j = lonBin - 1; j >= 0; --j) {
+        if (j < 0)
+          break;
+        int bin = getBin(i, j);
+        final byte t = type(lat,lon,bin,dist);
+        if (t != 0) {
+          filter[bin] = t;
           maxLatBin = i > maxLatBin ? i : maxLatBin;
           minLonBin = j < minLonBin ? j : minLonBin;
         } else {
@@ -111,24 +149,27 @@ public class Grid implements GeoHashBuilder, GeoHash {
       }
     }
 
-    for (int i = latBin - 1; i > 0; --i) {
-      for (int j = lonBin + 1; j < binsCount; ++j) {
-        double maxLon = lon + lonOffset * (j + 1);
-        double minLat = lat + latOffset + i;
-        if (GeoUtils.distance(lat, lon, minLat, maxLon) < dist) {
-          filter[getBin(i, j)] = 2;
+    for (int i = latBin - 1; i >= 0; --i) {
+      if (i < 0)
+        break;
+      for (int j = lonBin; j < binsCount; ++j) {
+        int bin = getBin(i, j);
+        final byte t = type(lat,lon,bin,dist);
+        if (t != 0) {
+          filter[bin] = t;
           minLatBin = i < minLatBin ? i : minLatBin;
           maxLonBin = j > maxLonBin ? j : maxLonBin;
-
         } else {
           break;
         }
       }
-      for (int j = lonBin - 1; j > 0; --j) {
-        double minLon = lon + lonOffset * j;
-        double minLat = lat + latOffset + i;
-        if (GeoUtils.distance(lat, lon, minLat, minLon) < dist) {
-          filter[getBin(i, j)] = 2;
+      for (int j = lonBin - 1; j >= 0; --j) {
+        if (j < 0)
+          break;
+        int bin = getBin(i, j);
+        final byte t = type(lat,lon,bin,dist);
+        if (t != 0) {
+          filter[bin] = t;
           minLatBin = i < minLatBin ? i : minLatBin;
           minLonBin = j < minLonBin ? j : minLonBin;
         } else {
@@ -148,6 +189,9 @@ public class Grid implements GeoHashBuilder, GeoHash {
     for (int latBin = filter.minLatBin; latBin <= filter.maxLatBin; ++latBin) {
       for (int lonBin = filter.minLonBin; lonBin <= filter.maxLonBin; ++lonBin) {
         final int bin = getBin(latBin, lonBin);
+        if (filter.filter[bin] == 1) {
+          ids.add(bins[bin].ids.toNativeArray());
+        }
         if (filter.filter[bin] == 2) {
           ids.add(bins[bin].near(lat, lon, dist));
         }
@@ -200,7 +244,8 @@ public class Grid implements GeoHashBuilder, GeoHash {
       final double destLatSin = Math.sin(destLat);
       final double destLatCos = Math.sqrt(1 - destLatSin * destLatSin);
       final double temp = latSin * destLatSin + latCos * destLatCos * Math.cos(lonDist);
-      return (GeoUtils.earthRadius * Math.acos(temp)) < dist;
+      return temp >  Math.cos(dist / GeoUtils.earthRadius);
+//      return (GeoUtils.earthRadius * Math.acos(temp)) < dist;
     }
   }
 }
