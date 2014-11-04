@@ -1,41 +1,28 @@
 {
     "max_threads_count": 5,
-    "mongodb_toku": {
+    "mongodb": {
         "connection_string": "mongodb://54.68.54.160:27017/",
         "database_name": "foursquare_msk",
         "collection_ids_name": "collection_ids",
-
         "write_time_series": true,
         "collection_time_series_name": "collection_time_series",
         "time_series_size": 356,
         "time_series_fields": ["rating", "specials_count", "hereNow_count",
             "stats_checkinsCount", "stats_usersCount", "stats_tipCount", "mayor_count",
             "tips_count", "photos_count", "likes_count"],
-
         "write_full": true,
         "collection_full_name": "collection_full",
-
-        "batch_size": 100
-    },
-    "mongodb_mongo": {
-        "connection_string": "mongodb://54.68.54.160:27017/",
-        "database_name": "foursquare_msk",
-        "collection_ids_name": "collection_ids",
-
-        "write_time_series": true,
-        "collection_time_series_name": "collection_time_series",
-        "time_series_size": 356,
-        "time_series_fields": ["rating", "specials_count", "hereNow_count",
-            "stats_checkinsCount", "stats_usersCount", "stats_tipCount", "mayor_count",
-            "tips_count", "photos_count", "likes_count"],
-
-        "write_full": true,
-        "collection_full_name": "collection_full",
-
         "batch_size": 100
     },
     "logger": {
-        "level": "INFO"
+        "console_level": "INFO",
+        "email_level": "ERROR",
+        "email_alerts": {
+            "gmail_login": "deemonasd",
+            "password": "xxskdultsdkfzdju",
+            "email_from": "deemonasd@gmail.com",
+            "email_to": "deemonasd@gmail.com"
+        }
     },
     "auth_keys": [
         {
