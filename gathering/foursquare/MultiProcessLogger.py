@@ -7,6 +7,9 @@ import Collector
 import Common
 import search_venues
 import get_venues
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 DEFAULT_LEVEL = logging.INFO
 
@@ -26,6 +29,32 @@ class SubProcessLogHandler(logging.Handler):
 
     def emit(self, record):
         self.queue.put(record)
+
+
+class EmailLogHandler(logging.Handler):
+
+    def __init__(self, gmail_login, password, emailFrom, emailTo):
+        logging.Handler.__init__(self)
+        self.gmail_login = gmail_login
+        self.password = password
+        self.emailFrom = emailFrom
+        self.emailTo = emailTo
+
+    def emit(self, record):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "GeoSpottingServer " + str(record.level)
+        msg['From'] = self.emailFrom
+        msg['To'] = self.emailTo
+        text = record.msg
+        part1 = MIMEText(text, 'plain')
+        msg.attach(part1)
+        s = smtplib.SMTP('smtp.gmail.com', 587)
+        s.ehlo()
+        s.starttls()
+        s.ehlo()
+        s.login(self.gmail_login, self.password)
+        s.sendmail(self.emailFrom, self.emailTo, msg.as_string())
+        s.quit()
 
 
 class LogQueueReader(threading.Thread):
@@ -68,7 +97,7 @@ class LogQueueReader(threading.Thread):
                 traceback.print_exc(file=sys.stderr)
 
     def __check_logger(self, logger):
-        if (len(logger.handlers) == 0):
+        if not logger.handlers:
             logger.setLevel(self.logger_level)
             for handler in self.handlers:
                 logger.addHandler(handler)

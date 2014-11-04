@@ -24,7 +24,7 @@ class GetVenues:
             self.storage_type = storage_type
             self.max_threads_count = 1
         else:
-            self.mongodb_config = config['mongodb']
+            self.mongodb_config = config
             self.auth_keys = config['auth_keys']
             self.storage_type = config['steps']['get_venues']['storage_type']
             self.max_threads_count = config['max_threads_count']
@@ -121,7 +121,8 @@ def secondStepGrabber(args):
 
 
 if __name__ == "__main__":
-    config = json.loads(open('init.json').read())
+    init_file = sys.argv[1]#'init.json'
+    config = json.loads(open(init_file).read())
     logger = logging.getLogger(__name__)
     ch = logging.StreamHandler()
     ch.setFormatter(MultiProcessLogger.formatter)

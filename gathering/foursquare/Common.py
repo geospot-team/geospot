@@ -21,9 +21,9 @@ class ConnectionTo4sq:
         self.current_client = self.__get_next_4sq_client()
         self.requests_counter = 0
 
-    def search(self, search_parameter):
-        succeed = False
-        while (not succeed):
+    def search(self, search_parameter, logger=None):
+        data = None
+        while not data:
             try:
                 data = self.current_client.venues.search(params={'query': '',
                                                                  'limit': '50',
@@ -31,53 +31,57 @@ class ConnectionTo4sq:
                                                                  'ne': search_parameter.to_str_ne(),
                                                                  'sw': search_parameter.to_str_sw(),
                                                                  'v': '20140606'})
-                succeed = True
-            except foursquare.RateLimitExceeded:
-                self.__reconnect()
-            except foursquare.ServerError:
-                self.__reconnect()
-                time.sleep(1)
+            except foursquare.FoursquareException as e:
+                if logger:
+                    logger.error(e)
+                sleep(10)
+                self.__reconnect(logger)
         self.requests_counter += 1
         return data
 
-    def get_venue(self, id):
-        succeed = False
-        while (not succeed):
+    def get_venue(self, id, logger=None):
+        data = None
+        while not data:
             try:
-                data = self.current_client.venues(id)
-                succeed = True
-            except foursquare.RateLimitExceeded:
-                self.__reconnect()
-            except foursquare.ServerError:
-                self.__reconnect()
-                time.sleep(1)
+                data = self.current_client.venues(str(id) + '&v=20140606')
+            except foursquare.FoursquareException as e:
+                if logger:
+                    logger.error(e)
+                sleep(10)
+                self.__reconnect(logger)
         self.requests_counter += 1
         return data
 
-    def get_categories(self):
-        succeed = False
-        while (not succeed):
+    def get_categories(self, logger=None):
+        data = None
+        while not data:
             try:
                 data = self.current_client.venues.categories()
-                succeed = True
-            except foursquare.RateLimitExceeded:
-                self.__reconnect()
-            except foursquare.ServerError:
-                self.__reconnect()
-                time.sleep(1)
+            except foursquare.FoursquareException as e:
+                if logger:
+                    logger.error(e)
+                sleep(10)
+                self.__reconnect(logger)
         self.requests_counter += 1
         return data
 
-    def __reconnect(self):
-        self.current_client = self.__get_next_4sq_client()
+    def __reconnect(self, logger=None):
+        self.current_client = self.__get_next_4sq_client(logger)
 
-    def __get_next_4sq_client(self):
+    def __get_next_4sq_client(self, logger=None):
         self.current_client_index += 1
-        if (self.current_client_index >= len(self.connection_strings)):
+        if self.current_client_index >= len(self.connection_strings):
             self.current_client_index = 0
-        #Logger.info('Too many queries to foursquare from client. Trying another one.')
-        client = foursquare.Foursquare(client_id=self.connection_strings[self.current_client_index]['client_id'],
+        client = None
+        while not client:
+            try:
+                #Logger.info('Too many queries to foursquare from client. Trying another one.')
+                client = foursquare.Foursquare(client_id=self.connection_strings[self.current_client_index]['client_id'],
                                        client_secret=self.connection_strings[self.current_client_index]['client_secret'])
+            except foursquare.FoursquareException as e:
+                if logger:
+                    logger.error(e)
+                sleep(10)
         return client
 
 
@@ -146,7 +150,7 @@ class MongodbStorage:
         config_mongo = config['mongodb_mongo']
         self.timestamp = timestamp
         self.logger = logger
-        self.batch_size = config['batch_size']
+        self.batch_size = config_toku['batch_size']
         self.client_toku = MongoClient(config_toku['connection_string'])
         self.db_toku = self.client_toku[config_toku['database_name']]
         self.client_mongo = MongoClient(config_mongo['connection_string'])
@@ -351,6 +355,18 @@ class MongodbStorage:
             #ids = json.dumps(ids)
             #file.write(ids)
             #file.close()
+
+class MongodbPartialCsvStorage(MongodbStorage):
+    def __init__(self, config, timestamp, logger):
+        config_toku = config['mongodb_toku']
+        MongodbStorage.__init__(self, config, timestamp, logger)
+
+    def __execute_time_series_update_csv(self):
+        csvfile = ""
+        csv_writer = csv.DictWriter(csvfile, self.time_series_fields)
+        if (len(self.time_series) > 0):
+            for item in self.time_series:
+                csv_writer.writerow({self.time_series_fields[i]:item[i] for i in range(len(self.time_series_fields))})
 
 class JsonStorage:
     def __init__(self, config, timestamp, logger):

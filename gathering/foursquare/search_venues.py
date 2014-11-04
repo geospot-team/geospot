@@ -22,7 +22,7 @@ class SearchVenues:
             self.search_parameter = search_parameter
             self.max_threads_count = 1
         else:
-            self.mongodb_config = config['mongodb']
+            self.mongodb_config = config
             self.auth_keys = config['auth_keys']
             self.search_parameter = Common.SearchParameter(config['steps']['search_venues'])
             self.max_threads_count = config['max_threads_count']
@@ -81,9 +81,15 @@ class SearchVenues:
         else:
             #threads_count = 1
             queue = multiprocessing.Queue()
-            ch = logging.StreamHandler()
-            ch.setFormatter(MultiProcessLogger.formatter)
-            log_queue_reader = MultiProcessLogger.LogQueueReader(queue, [ch], self.logger.level)
+            ch_c = logging.StreamHandler()
+            ch_c.setFormatter(MultiProcessLogger.formatter)
+
+            ch_e = MultiProcessLogger.EmailLogHandler("deemonasd", "xxskdultsdkfzdju",
+                                                    "deemonasd@gmail.com", "deemonasd@gmail.com")
+            ch_e.setFormatter(MultiProcessLogger.formatter)
+            ch_e.setLevel(logging.INFO)
+
+            log_queue_reader = MultiProcessLogger.LogQueueReader(queue, [ch_c, ch_e], self.logger.level)
             log_queue_reader.start()
 
             search_parameters = self.search_parameter.split(True, threads_count)
@@ -136,7 +142,8 @@ def firstStepGrabber_init(queue):
 
 if __name__ == "__main__":
     #MultiProcessLogger.configure_loggers()
-    config = json.loads(open('init.json').read())
+    init_file = sys.argv[1]#'init.json'
+    config = json.loads(open(init_file).read())
     logger = logging.getLogger(__name__)
     ch = logging.StreamHandler()
     ch.setFormatter(MultiProcessLogger.formatter)
