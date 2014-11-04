@@ -45,30 +45,30 @@ class Listener(StreamListener):
         self.recovery_file = gzip.open(file_name, 'a')
         self.batch_size = int(config["crawler_config"]["batch_size"])
 
-    def check_batch(self):
-        if len(self.batch) > self.batch_size:
-            try:
-                self.writer.save(self.batch)
-                # self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
-            except Exception as exp:
-                print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
-                file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) + '.txt.gz'
-                txt_file = gzip.open(file_name, 'a')
-                for content_dict in self.batch:
-                    txt_file.write(str(content_dict))
-                    txt_file.write("\n")
-                txt_file.flush()
-                txt_file.close()
-                self.batch = []
+    # def check_batch(self):
+    #     if len(self.batch) > self.batch_size:
+    #         try:
+    #             self.writer.save(self.batch)
+    #             # self.batch = [tweet for tweet in self.batch if tweet["_id"] not in set(inserted_ids)]
+    #         except Exception as exp:
+    #             print('Unexpected error with mongo: {}\nSave to file'.format(str(exp)))
+    #             file_name = 'tweets_recovery' + time.strftime("_%Y-%m-%d_%H_%M_%S", time.gmtime()) + '.txt.gz'
+    #             txt_file = gzip.open(file_name, 'a')
+    #             for content_dict in self.batch:
+    #                 txt_file.write(str(content_dict))
+    #                 txt_file.write("\n")
+    #             txt_file.flush()
+    #             txt_file.close()
+    #             self.batch = []
 
     def save(self, content_dict):
         try:
             self.writer.save(content_dict)
         except Exception as exp:
             print('Unexpected error with mongo: {}\n'.format(str(exp)))
-            self.txt_file.write(str(content_dict))
-            self.txt_file.write("\n")
-            self.txt_file.flush()
+            self.recovery_file.write(str(content_dict))
+            self.recovery_file.write("\n")
+            self.recovery_file.flush()
 
 
     def on_data(self, data):

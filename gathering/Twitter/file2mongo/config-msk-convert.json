@@ -1,0 +1,12 @@
+{
+	"old" : {
+		"primary_node": "mongodb://localhost:21015/",
+		"database":"geospot",
+		"collection":"twitter_msk"
+	},
+	"new" : {
+		"primary_node": "mongodb://localhost:27017/",
+		"database":"geospot",
+		"collection":"twitter_msk"
+	}
+}

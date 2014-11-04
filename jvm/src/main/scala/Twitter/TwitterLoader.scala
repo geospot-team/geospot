@@ -14,6 +14,7 @@ import de.undercouch.bson4jackson.BsonFactory
 
 
 object TwitterLoader extends (String => List[Tweet]) {
+
   class TweetBuilder {
     var lat = 0.0
     var lon = 0.0

@@ -13,9 +13,8 @@ trait Vertex {
 
   override def equals(other: Any) = {
     other match {
-      case otherVertex: Vertex => {
+      case otherVertex: Vertex =>
         otherVertex.vertex == this.vertex && otherVertex.weight == weight
-      }
       case _ =>
         false
     }
