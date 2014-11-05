@@ -64,7 +64,7 @@ class GetVenues:
 
         logger.info("Getting ids...")
         self.connection_to_storage = Common.MongodbStorage(self.config, None, logger)
-        ids = self.connection_to_storage.get_ids(limit=10)
+        ids = self.connection_to_storage.get_ids()#limit=10)
         logger.info("Found {} object ids.".format(len(ids)))
         ids = self.__chunks(ids, len(ids) / threads_count)
         args = [(ids[i], self.categories, self.auth_keys[2 * i:2 * i + 2]) for i in range(threads_count)]
