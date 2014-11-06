@@ -60,7 +60,8 @@ class ConnectionTo4sq:
             try:
                 data = self.current_client.venues.categories()
             except foursquare.FoursquareException as e:
-                self.logger.error(e)
+                if self.logger:
+                    self.logger.error(e)
                 sleep(10)
                 self.__reconnect()
         self.requests_counter += 1
@@ -114,13 +115,13 @@ class SearchParameter:
         return str(self.southPoint) + ',' + str(self.westPoint)
 
     def split(self, horizontal, split_rate=None):
-        if (split_rate is None):
+        if not split_rate:
             split_rate = self.split_rate
         new_parameters = []
         i = 0
-        if (horizontal):
+        if horizontal:
             step = (self.northPoint - self.southPoint) / split_rate
-            while (i < split_rate):
+            while i < split_rate:
                 new_parameters.append(SearchParameter(None,
                                                       self.southPoint + (i + 1) * step,
                                                       self.eastPoint,
@@ -232,11 +233,12 @@ class MongodbStorage:
             self.logger.error(ex)
 
     def __execute_ids_update(self):
-        if (len(self.ids) > 0):
+        if self.ids:
+            self.logger.debug('Ids: writing {}'.format(len(self.ids)))
             #inserted_ids = self.collection_ids.insert(self.ids)
             bulk = self.collection_ids.initialize_unordered_bulk_op()
             for item in self.ids:
-                if(item.has_key('_id')):
+                if item.has_key('_id'):
                     id = item['_id']
                     del item['_id']
                 else:
@@ -248,6 +250,7 @@ class MongodbStorage:
 
     def __execute_full_update(self):
         if self.full:
+            self.logger.debug('Full: writing {}'.format(len(self.full)))
             bulk = self.collection_full.initialize_unordered_bulk_op()
             for item in self.full:
                 if item.has_key('_id'):
@@ -262,6 +265,7 @@ class MongodbStorage:
 
     def __execute_time_series_update(self):
         if self.time_series:
+            self.logger.debug('Time series: writing {}'.format(len(self.time_series)))
             ids = [ObjectId(x['id']) for x in self.time_series]
             ids_exists = set([])
             insert_items = []
@@ -421,7 +425,7 @@ class WriterThreaded(threading.Thread):
     def run(self):
         logger = MultiProcessLogger.get_logger("Writer", self.logger_queue)
         writer = get_writer(self.config, logger)
-        while True:
+        while self.children_count:
             try:
                 type, record = self.queue.get()
                 if type == "write_ids":
@@ -432,17 +436,14 @@ class WriterThreaded(threading.Thread):
                     self.children_count-=1
                 else:
                     logger.warn("Unknown type: " + str(type))
-                if not self.children_count:
-                    writer.close()
-                    break
             except (KeyboardInterrupt, SystemExit):
                 writer.close()
                 raise
             except EOFError:
-                writer.close()
                 break
             except Exception as e:
                 logger.error(e)
+        writer.close()
 
 
 FIELDS_UPDATES = ['rating', 'specials_count', 'hereNow_count',
@@ -474,7 +475,7 @@ def init_threaded_logger(config):
 
 
 def init_threaded_writer(config, logger_queue, children_count):
-    writer_queue = multiprocessing.Queue(config["mongodb"]["batch_size"]*3)
+    writer_queue = multiprocessing.Queue(config["mongodb"]["batch_size"]*2)
     writer_threaded = WriterThreaded(writer_queue, config, logger_queue, children_count)
     writer_threaded.start()
 

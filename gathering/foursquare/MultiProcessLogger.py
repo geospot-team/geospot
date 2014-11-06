@@ -3,6 +3,7 @@ import threading
 import logging
 import sys
 import smtplib
+import socket
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -34,10 +35,10 @@ class EmailLogHandler(logging.Handler):
 
     def emit(self, record):
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = "GeoSpottingServer Foursquare" + str(record.levelname)
+        msg['Subject'] = "GeoSpottingServer Foursquare " + str(record.levelname)
         msg['From'] = self.emailFrom
         msg['To'] = self.emailTo
-        text = str(record.msg)
+        text = str(socket.gethostname()) + "\n" + str(record.msg)
         part1 = MIMEText(text, 'plain')
         msg.attach(part1)
         s = smtplib.SMTP('smtp.gmail.com', 587)

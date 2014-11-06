@@ -1,7 +1,7 @@
+from Queue import Empty
 import json
 import multiprocessing
 import traceback
-import logging
 import sys
 import time
 import Common
@@ -9,50 +9,40 @@ import MultiProcessLogger
 
 
 class SearchVenuesThreaded:
-    def __init__(self, logger_queue, writer_queue, auth_keys, categories, search_parameter):
+    def __init__(self, logger_queue, writer_queue, task_queue, auth_keys, categories):
         self.logger_queue = logger_queue
         self.logger = MultiProcessLogger.get_logger("Search", logger_queue)
         self.writer_queue = writer_queue
+        self.task_queue = task_queue
         self.auth_keys = auth_keys
         self.connection_to_4sq = Common.ConnectionTo4sq(self.auth_keys, self.logger)
         self.categories = categories
-        self.search_parameter = search_parameter
 
     def run(self):
-        parameters = self.search_parameter.split(True)
-        parameters = [x for param in parameters for x in param.split(False)]
         i = 0
-        length = len(parameters)
-        keyboard_interrupt = False
-        start_time = time.time()
-        while i < length:
+        while True:
             try:
-                self.logger.info("{} out of {}".format(i, length))
+                parameter = self.task_queue.get_nowait()
+                self.logger.info("{} parameter. Left: {}".format(i, self.task_queue.qsize()))
+
                 start_sub_area = time.time()
-                param = parameters[i]
-
-                self.search_in_area(param)
-
+                self.search_in_area(parameter)
                 end_sub_area = time.time()
-                self.logger.debug('Area: {}...Done. It took {} seconds. Total requests count: {}'.
-                                  format(param,
+
+                self.logger.info('Area: {}...Done. It took {} seconds. Total requests count: {}'.
+                                  format(parameter,
                                          end_sub_area - start_sub_area,
                                          self.connection_to_4sq.requests_counter))
                 i += 1
+            except Empty:
+                break
             except KeyboardInterrupt:
-                keyboard_interrupt = True
                 break
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.logger.error('Unexpected error ' + str(self.connection_to_4sq.requests_counter) + ':' +
                                   str(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.writer_queue.put(("die", None))
-        end_time = time.time()
-        if keyboard_interrupt:
-            self.logger.info('Thread was interrupted. It took:{} seconds'.format(end_time - start_time))
-        else:
-            self.logger.info('Thread finished execution successfully. It took: {} seconds'.format(end_time - start_time))
-        return not keyboard_interrupt
 
     def search_in_area(self, search_parameter):
         rows = self.connection_to_4sq.search(search_parameter)['venues']
@@ -69,7 +59,6 @@ class SearchVenuesThreaded:
                 new_parameters = search_parameter.split(True)
                 new_parameters = [x for param in new_parameters for x in param.split(False)]
                 for param in new_parameters:
-                    self.logger.debug('Go deeper: {}'.format(param))
                     self.search_in_area(param)
         if save:
             for row in rows:
@@ -89,31 +78,46 @@ class SearchVenues:
         self.__run_in_parallel(min([len(self.auth_keys) / 2, self.max_threads_count]))
 
     def __run_in_parallel(self, threads_count):
+        task_queue = multiprocessing.Queue()
         logger_queue = Common.init_threaded_logger(self.config)
         logger = MultiProcessLogger.get_logger("Main", logger_queue)
         writer_queue = Common.init_threaded_writer(self.config, logger_queue, threads_count)
-        search_parameters = self.search_parameter.split(True, threads_count)
 
-        args = [(search_parameters[i], self.auth_keys[2 * i:2 * i + 2], self.categories) for i in range(threads_count)]
+        search_parameters = self.search_parameter.split(True, 100)
+        search_parameters = [x for param in search_parameters for x in param.split(False, 100)]
+        logger.info("Search parameters count: {}.".format(len(search_parameters)))
+        for param in search_parameters:
+            task_queue.put_nowait(param)
+        #search_parameters = self.search_parameter.split(True, threads_count)
 
-        pool = multiprocessing.Pool(threads_count, first_step_grabber_init, [logger_queue, writer_queue])
+        args = [(self.auth_keys[2 * i:2 * i + 2], self.categories) for i in range(threads_count)]
+
+        pool = multiprocessing.Pool(threads_count, first_step_grabber_init, [logger_queue, writer_queue, task_queue])
         logger.info("Starting {} processes for first step...".format(threads_count))
-        result = pool.map(firstStepGrabber, args)
+        try:
+            result = pool.map(firstStepGrabber, args)
+        except KeyboardInterrupt:
+            while not task_queue.empty():
+                try:
+                    task_queue.get_nowait()
+                except Empty:
+                    pass
 
 
 def firstStepGrabber(args):
-    search_parameter = args[0]
-    auth_keys = args[1]
-    categories = args[2]
+    auth_keys = args[0]
+    categories = args[1]
     logger_queue = first_step_grabber_init.logger_queue
     writer_queue = first_step_grabber_init.writer_queue
-    search_venues = SearchVenuesThreaded(logger_queue, writer_queue, auth_keys, categories, search_parameter)
+    task_queue = first_step_grabber_init.task_queue
+    search_venues = SearchVenuesThreaded(logger_queue, writer_queue, task_queue, auth_keys, categories)
     search_venues.run()
 
 
-def first_step_grabber_init(logger_queue, writer_queue):
+def first_step_grabber_init(logger_queue, writer_queue, task_queue):
     first_step_grabber_init.logger_queue = logger_queue
     first_step_grabber_init.writer_queue = writer_queue
+    first_step_grabber_init.task_queue = task_queue
 
 
 

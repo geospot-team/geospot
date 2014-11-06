@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from Queue import Empty
 import json
 import multiprocessing
 import sys
@@ -10,40 +11,35 @@ import MultiProcessLogger
 
 
 class GetVenuesThreaded:
-    def __init__(self, logger_queue, writer_queue, auth_keys, categories, ids):
+    def __init__(self, logger_queue, writer_queue, task_queue, auth_keys, categories):
         self.logger_queue = logger_queue
         self.logger = MultiProcessLogger.get_logger("Get", logger_queue)
         self.writer_queue = writer_queue
         self.auth_keys = auth_keys
         self.connection_to_4sq = Common.ConnectionTo4sq(self.auth_keys, self.logger)
         self.categories = categories
-        self.ids = ids
+        self.task_queue = task_queue
 
     def run(self):
-        keyboard_interrupt = False
-        start_time = time.time()
-        for i in range(len(self.ids)):
+        i = 0
+        while True:
             try:
-                self.logger.info("{} out of {}".format(i, len(self.ids)))
-                id = self.ids[i]
-                row = self.connection_to_4sq.get_venue(id)['venue']
+                parameter = self.task_queue.get_nowait()
+                if i % 100 == 0:
+                    self.logger.info("{} parameter. Left: ".format(i, self.task_queue.qsize()))
+                row = self.connection_to_4sq.get_venue(parameter)['venue']
                 Common.addCategory(row, self.categories)
                 self.writer_queue.put(("write", row))
+                i += 1
+            except Empty:
+                break
             except KeyboardInterrupt:
-                keyboard_interrupt = True
                 break
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 self.logger.error('Unexpected error ' + str(self.connection_to_4sq.requests_counter) + ':' +
                                   str(traceback.format_exception(exc_type, exc_value, exc_traceback)))
         self.writer_queue.put(("die", None))
-        end_time = time.time()
-        if keyboard_interrupt:
-            self.logger.info('Thread was interrupted. It took: {} seconds'.format(end_time - start_time))
-        else:
-            self.logger.info(
-                'Thread finished execution successfully. It took: {} seconds'.format(end_time - start_time))
-        return not keyboard_interrupt
 
 
 class GetVenues:
@@ -58,6 +54,7 @@ class GetVenues:
         self.__run_in_parallel(min([len(self.auth_keys) / 2, self.max_threads_count]))
 
     def __run_in_parallel(self, threads_count):
+        task_queue = multiprocessing.Queue()
         logger_queue = Common.init_threaded_logger(self.config)
         logger = MultiProcessLogger.get_logger("Main", logger_queue)
         writer_queue = Common.init_threaded_writer(self.config, logger_queue, threads_count)
@@ -66,37 +63,40 @@ class GetVenues:
         self.connection_to_storage = Common.MongodbStorage(self.config, None, logger)
         ids = self.connection_to_storage.get_ids()#limit=10)
         logger.info("Found {} object ids.".format(len(ids)))
-        ids = self.__chunks(ids, len(ids) / threads_count)
-        args = [(ids[i], self.categories, self.auth_keys[2 * i:2 * i + 2]) for i in range(threads_count)]
+        for param in ids:
+            task_queue.put_nowait(param)
+        args = [(self.categories, self.auth_keys[2 * i:2 * i + 2]) for i in range(threads_count)]
 
-        pool = multiprocessing.Pool(threads_count, second_step_grabber_init, [logger_queue, writer_queue])
+        pool = multiprocessing.Pool(threads_count, second_step_grabber_init, [logger_queue, writer_queue, task_queue])
         logger.info("Starting {} processes for second step...".format(threads_count))
         start_time = time.time()
-        result = pool.map(second_step_grabber, args)
+        try:
+            result = pool.map(second_step_grabber, args)
+        except KeyboardInterrupt:
+            while not task_queue.empty():
+                try:
+                    task_queue.get_nowait()
+                except Empty:
+                    pass
         end_time = time.time()
         logger.info('Program finished execution. It took: {} seconds'.format(end_time - start_time))
 
-    def __chunks(self, l, n):
-        result = []
-        for i in xrange(0, len(l), n):
-            result.extend([l[i:i + n]])
-        return result
-
 
 def second_step_grabber(args):
-    ids = args[0]
-    categories = args[1]
-    auth_keys = args[2]
+    categories = args[0]
+    auth_keys = args[1]
     logger_queue = second_step_grabber_init.logger_queue
     writer_queue = second_step_grabber_init.writer_queue
+    task_queue = second_step_grabber_init.task_queue
 
-    get_venues = GetVenuesThreaded(logger_queue, writer_queue, auth_keys, categories, ids)
+    get_venues = GetVenuesThreaded(logger_queue, writer_queue, task_queue, auth_keys, categories)
     get_venues.run()
 
 
-def second_step_grabber_init(logger_queue, writer_queue):
+def second_step_grabber_init(logger_queue, writer_queue, task_queue):
     second_step_grabber_init.logger_queue = logger_queue
     second_step_grabber_init.writer_queue = writer_queue
+    second_step_grabber_init.task_queue = task_queue
 
 
 if __name__ == "__main__":
