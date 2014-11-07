@@ -83,8 +83,9 @@ class SearchVenues:
         logger = MultiProcessLogger.get_logger("Main", logger_queue)
         writer_queue = Common.init_threaded_writer(self.config, logger_queue, threads_count)
 
-        search_parameters = self.search_parameter.split(True, 100)
-        search_parameters = [x for param in search_parameters for x in param.split(False, 100)]
+        split_rate = 32
+        search_parameters = self.search_parameter.split(True, split_rate)
+        search_parameters = [x for param in search_parameters for x in param.split(False, split_rate)]
         logger.info("Search parameters count: {}.".format(len(search_parameters)))
         for param in search_parameters:
             task_queue.put_nowait(param)

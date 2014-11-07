@@ -19,6 +19,7 @@ import MultiProcessLogger
 
 class ConnectionTo4sq:
     def __init__(self, connection_strings, logger):
+        self.last_connect_time = None
         self.connection_strings = connection_strings
         self.current_client_index = -1
         self.current_client = self.__get_next_4sq_client()
@@ -37,7 +38,6 @@ class ConnectionTo4sq:
                                                                  'v': '20140606'})
             except foursquare.FoursquareException as e:
                 self.logger.error(e)
-                sleep(10)
                 self.__reconnect()
         self.requests_counter += 1
         return data
@@ -49,7 +49,6 @@ class ConnectionTo4sq:
                 data = self.current_client.venues(str(id))
             except foursquare.FoursquareException as e:
                 self.logger.error(e)
-                sleep(10)
                 self.__reconnect()
         self.requests_counter += 1
         return data
@@ -62,12 +61,15 @@ class ConnectionTo4sq:
             except foursquare.FoursquareException as e:
                 if self.logger:
                     self.logger.error(e)
-                sleep(10)
                 self.__reconnect()
         self.requests_counter += 1
         return data
 
     def __reconnect(self):
+        if (datetime.utcnow() - self.last_connect_time) < 360:
+            sleep(360)
+        else:
+            sleep(10)
         self.current_client = self.__get_next_4sq_client()
 
     def __get_next_4sq_client(self):
@@ -80,9 +82,10 @@ class ConnectionTo4sq:
                 #Logger.info('Too many queries to foursquare from client. Trying another one.')
                 client = foursquare.Foursquare(client_id=self.connection_strings[self.current_client_index]['client_id'],
                                        client_secret=self.connection_strings[self.current_client_index]['client_secret'])
+                self.last_connect_time = datetime.utcnow()
             except foursquare.FoursquareException as e:
                 self.logger.error(e)
-                sleep(10)
+                sleep(self.time_to_wait)
         return client
 
 
@@ -245,7 +248,7 @@ class MongodbStorage:
                     id = ObjectId(item['id'])
                 bulk.find({'_id': id}).upsert().update({'$set': item})
             result = bulk.execute()
-            self.logger.debug('Ids: ' + str(result))
+            self.logger.debug('Ids: ' + self.__get_str_from_result(result))
             self.ids = []
 
     def __execute_full_update(self):
