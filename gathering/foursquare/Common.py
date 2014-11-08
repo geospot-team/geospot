@@ -2,7 +2,7 @@ import csv
 
 import getopt
 import json
-from datetime import date
+from datetime import timedelta
 import logging
 import multiprocessing
 import os
@@ -66,7 +66,10 @@ class ConnectionTo4sq:
         return data
 
     def __reconnect(self):
-        if (datetime.utcnow() - self.last_connect_time) < 360:
+        if self.current_client_index == len(self.connection_strings) - 1 and \
+                        (datetime.utcnow() - self.last_connect_time) < timedelta(0, 360):
+            if self.logger:
+                self.logger.info("Too many requests. Sleep for {} seconds".format(360))
             sleep(360)
         else:
             sleep(10)
@@ -85,7 +88,6 @@ class ConnectionTo4sq:
                 self.last_connect_time = datetime.utcnow()
             except foursquare.FoursquareException as e:
                 self.logger.error(e)
-                sleep(self.time_to_wait)
         return client
 
 
@@ -205,6 +207,10 @@ class MongodbStorage:
         else:
             ids = coll.distinct('_id')
         return ids
+
+    def get_ids_iter(self, category_filter=None):
+        coll = self.collection_ids
+        return coll.count(), coll.find()
 
     def write(self, row):
         row['_id'] = ObjectId(row['id'])

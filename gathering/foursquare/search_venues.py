@@ -95,6 +95,7 @@ class SearchVenues:
 
         pool = multiprocessing.Pool(threads_count, first_step_grabber_init, [logger_queue, writer_queue, task_queue])
         logger.info("Starting {} processes for first step...".format(threads_count))
+        start_time = time.time()
         try:
             result = pool.map(firstStepGrabber, args)
         except KeyboardInterrupt:
@@ -103,6 +104,8 @@ class SearchVenues:
                     task_queue.get_nowait()
                 except Empty:
                     pass
+        end_time = time.time()
+        logger.info('Program finished execution. It took: {} seconds'.format(end_time - start_time))
 
 
 def firstStepGrabber(args):

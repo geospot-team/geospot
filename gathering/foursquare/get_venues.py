@@ -4,6 +4,7 @@ from Queue import Empty
 import json
 import multiprocessing
 import sys
+import threading
 import traceback
 import time
 import Common
@@ -24,9 +25,9 @@ class GetVenuesThreaded:
         i = 0
         while True:
             try:
-                parameter = self.task_queue.get_nowait()
+                parameter = self.task_queue.get(timeout=60)
                 if i % 100 == 0:
-                    self.logger.info("{} parameter. Left: ".format(i, self.task_queue.qsize()))
+                    self.logger.info("{} parameter. Left: {}".format(i, self.task_queue.qsize()))
                 row = self.connection_to_4sq.get_venue(parameter)['venue']
                 Common.addCategory(row, self.categories)
                 self.writer_queue.put(("write", row))
@@ -46,7 +47,6 @@ class GetVenues:
     def __init__(self, config, categories):
         self.config = config
         self.auth_keys = config['auth_keys']
-        self.storage_type = config['steps']['get_venues']['storage_type']
         self.max_threads_count = config['max_threads_count']
         self.categories = categories
 
@@ -54,17 +54,10 @@ class GetVenues:
         self.__run_in_parallel(min([len(self.auth_keys) / 2, self.max_threads_count]))
 
     def __run_in_parallel(self, threads_count):
-        task_queue = multiprocessing.Queue()
         logger_queue = Common.init_threaded_logger(self.config)
         logger = MultiProcessLogger.get_logger("Main", logger_queue)
         writer_queue = Common.init_threaded_writer(self.config, logger_queue, threads_count)
-
-        logger.info("Getting ids...")
-        self.connection_to_storage = Common.MongodbStorage(self.config, None, logger)
-        ids = self.connection_to_storage.get_ids()#limit=10)
-        logger.info("Found {} object ids.".format(len(ids)))
-        for param in ids:
-            task_queue.put_nowait(param)
+        task_queue = init_threaded_get_ids(config, logger_queue, logger)
         args = [(self.categories, self.auth_keys[2 * i:2 * i + 2]) for i in range(threads_count)]
 
         pool = multiprocessing.Pool(threads_count, second_step_grabber_init, [logger_queue, writer_queue, task_queue])
@@ -80,6 +73,50 @@ class GetVenues:
                     pass
         end_time = time.time()
         logger.info('Program finished execution. It took: {} seconds'.format(end_time - start_time))
+
+
+class GetIdsThreaded(threading.Thread):
+    def __init__(self, queue, config, logger_queue, logger=None):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.logger_queue = logger_queue
+        self.config = config
+        self.daemon = True
+        self.batch_size = queue._maxsize
+        # if logger:
+        #     logger.info("Getting ids...")
+        # writer = Common.get_writer(self.config, logger)
+        # self.ids = writer.get_ids(limit=100)
+        # if logger:
+        #     logger.info("Found {} object ids.".format(len(self.ids)))
+
+
+    def run(self):
+        logger = MultiProcessLogger.get_logger("GetIds", self.logger_queue)
+        writer = Common.get_writer(self.config, logger)
+        count, ids = writer.get_ids_iter()
+        #logger.info("Getting ids...")
+        #self.ids = writer.get_ids()#limit=100)
+        #logger.info("Found {} object ids.".format(len(self.ids)))
+        counter = 0
+        try:
+            for item in ids:
+                self.queue.put(item['_id'])
+                counter += 1
+                if counter % self.batch_size == 0:
+                    logger.info("Found {} items from {}".format(counter, count))
+        except (KeyboardInterrupt, SystemExit, EOFError):
+            pass
+        except Exception as e:
+            logger.error(e)
+
+
+def init_threaded_get_ids(config, logger_queue, logger):
+    task_queue = multiprocessing.Queue(config["mongodb"]["batch_size"]*2)
+    task_thread = GetIdsThreaded(task_queue, config, logger_queue, logger)
+    task_thread.start()
+
+    return task_queue
 
 
 def second_step_grabber(args):
