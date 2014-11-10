@@ -58,7 +58,7 @@ class GetVenues:
         logger = MultiProcessLogger.get_logger("Main", logger_queue)
         writer_queue = Common.init_threaded_writer(self.config, logger_queue, threads_count)
         task_queue = init_threaded_get_ids(config, logger_queue, logger)
-        args = [(self.categories, self.auth_keys[2 * i:2 * i + 2]) for i in range(threads_count)]
+        args = [(self.categories, self.auth_keys[3 * i:3 * i + 3]) for i in range(threads_count)]
 
         pool = multiprocessing.Pool(threads_count, second_step_grabber_init, [logger_queue, writer_queue, task_queue])
         logger.info("Starting {} processes for second step...".format(threads_count))
@@ -109,6 +109,8 @@ class GetIdsThreaded(threading.Thread):
             pass
         except Exception as e:
             logger.error(e)
+        finally:
+            ids.close()
 
 
 def init_threaded_get_ids(config, logger_queue, logger):

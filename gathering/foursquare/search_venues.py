@@ -91,7 +91,7 @@ class SearchVenues:
             task_queue.put_nowait(param)
         #search_parameters = self.search_parameter.split(True, threads_count)
 
-        args = [(self.auth_keys[2 * i:2 * i + 2], self.categories) for i in range(threads_count)]
+        args = [(self.auth_keys[3 * i:3 * i + 3], self.categories) for i in range(threads_count)]
 
         pool = multiprocessing.Pool(threads_count, first_step_grabber_init, [logger_queue, writer_queue, task_queue])
         logger.info("Starting {} processes for first step...".format(threads_count))

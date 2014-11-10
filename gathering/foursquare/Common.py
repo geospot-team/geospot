@@ -36,6 +36,8 @@ class ConnectionTo4sq:
                                                                  'ne': search_parameter.to_str_ne(),
                                                                  'sw': search_parameter.to_str_sw(),
                                                                  'v': '20140606'})
+            except foursquare.RateLimitExceeded as e:
+                self.__reconnect()
             except foursquare.FoursquareException as e:
                 self.logger.error(e)
                 self.__reconnect()
@@ -47,6 +49,8 @@ class ConnectionTo4sq:
         while not data:
             try:
                 data = self.current_client.venues(str(id))
+            except foursquare.RateLimitExceeded as e:
+                self.__reconnect()
             except foursquare.FoursquareException as e:
                 self.logger.error(e)
                 self.__reconnect()
@@ -58,6 +62,8 @@ class ConnectionTo4sq:
         while not data:
             try:
                 data = self.current_client.venues.categories()
+            except foursquare.RateLimitExceeded as e:
+                self.__reconnect()
             except foursquare.FoursquareException as e:
                 if self.logger:
                     self.logger.error(e)
@@ -69,7 +75,7 @@ class ConnectionTo4sq:
         if self.current_client_index == len(self.connection_strings) - 1 and \
                         (datetime.utcnow() - self.last_connect_time) < timedelta(0, 360):
             if self.logger:
-                self.logger.info("Too many requests. Sleep for {} seconds".format(360))
+                self.logger.warn("Too many requests. Sleep for {} seconds".format(360))
             sleep(360)
         else:
             sleep(10)
@@ -158,6 +164,7 @@ class MongodbStorage:
         self.batch_size = mongodb_config['batch_size']
         self.client = MongoClient(mongodb_config['connection_string'])
         self.db = self.client[mongodb_config['database_name']]
+        self.file_prefix = config['file_prefix']
 
         self.collection_ids = self.db[mongodb_config['collection_ids_name']]
         self.ids = []
@@ -210,7 +217,7 @@ class MongodbStorage:
 
     def get_ids_iter(self, category_filter=None):
         coll = self.collection_ids
-        return coll.count(), coll.find()
+        return coll.count(), coll.find(timeout=False)
 
     def write(self, row):
         row['_id'] = ObjectId(row['id'])
@@ -253,9 +260,17 @@ class MongodbStorage:
                 else:
                     id = ObjectId(item['id'])
                 bulk.find({'_id': id}).upsert().update({'$set': item})
-            result = bulk.execute()
-            self.logger.debug('Ids: ' + self.__get_str_from_result(result))
-            self.ids = []
+            try:
+                result = bulk.execute()
+                self.logger.debug('Ids: ' + self.__get_str_from_result(result))
+            except PyMongoError:
+                for item in self.ids:
+                    if item.has_key('_id'):
+                        del item['_id']
+                self.write_to_file('ids', self.ids)
+                raise
+            finally:
+                self.ids = []
 
     def __execute_full_update(self):
         if self.full:
@@ -268,35 +283,56 @@ class MongodbStorage:
                 else:
                     id = ObjectId(item['id'])
                 bulk.find({'_id': id}).upsert().update({'$set': item})
-            result = bulk.execute()
-            self.logger.debug('Full: ' + self.__get_str_from_result(result))
-            self.full = []
+            try:
+                result = bulk.execute()
+                self.logger.debug('Full: ' + self.__get_str_from_result(result))
+            except PyMongoError:
+                self.write_to_file('full', self.full)
+                raise
+            finally:
+                self.full = []
 
     def __execute_time_series_update(self):
         if self.time_series:
             self.logger.debug('Time series: writing {}'.format(len(self.time_series)))
-            ids = [ObjectId(x['id']) for x in self.time_series]
-            ids_exists = set([])
-            insert_items = []
-            for item in self.collection_time_series.find({'_id': {'$in': ids}}, {'_ids': 1}):
-                ids_exists.add(item['_id'])
-            for item in self.time_series:
-                if ObjectId(item['id']) not in ids_exists:
-                    insert_items.extend([self.__get_empty_updates_row(item)])
-            if (len(insert_items) != 0):
-                inserted_ids = self.collection_time_series.insert(insert_items)
-                self.logger.info('Written ' + str(len(inserted_ids)) + ' new time_series')
-            bulk = self.collection_time_series.initialize_unordered_bulk_op()
-            for item in self.time_series:
-                if '_id' in item:
-                    id = item['_id']
-                    del item['_id']
-                else:
-                    id = ObjectId(item['id'])
-                bulk.find({'_id': id}).update({'$set': item})
-            result = bulk.execute()
-            self.logger.debug('Time series: ' + self.__get_str_from_result(result))
-            self.time_series = []
+
+            try:
+                ids = [ObjectId(x['id']) for x in self.time_series]
+                ids_exists = set([])
+                insert_items = []
+                for item in self.collection_time_series.find({'_id': {'$in': ids}}, {'_ids': 1}):
+                    ids_exists.add(item['_id'])
+                for item in self.time_series:
+                    if ObjectId(item['id']) not in ids_exists:
+                        insert_items.extend([self.__get_empty_updates_row(item)])
+                if insert_items:
+                    inserted_ids = self.collection_time_series.insert(insert_items)
+                    self.logger.info('Written ' + str(len(inserted_ids)) + ' new time_series')
+                bulk = self.collection_time_series.initialize_unordered_bulk_op()
+                for item in self.time_series:
+                    if '_id' in item:
+                        id = item['_id']
+                        del item['_id']
+                    else:
+                        id = ObjectId(item['id'])
+                    bulk.find({'_id': id}).update({'$set': item})
+                result = bulk.execute()
+                self.logger.debug('Time series: ' + self.__get_str_from_result(result))
+            except PyMongoError:
+                for item in self.time_series:
+                    if '_id' in item:
+                        del item['_id']
+                self.write_to_file('time_series', self.time_series)
+                raise
+            finally:
+                self.time_series = []
+
+    def write_to_file(self, file_name, rows):
+        filename_full = self.file_prefix + file_name + '_' + str(self.timestamp.date())
+        writer = open(filename_full, 'a')
+        for row in rows:
+            writer.write(json.dumps(row) + '\n')
+        writer.close()
 
     def __filter_and_plain_row(self, row, day=None):
         d = dict()
@@ -372,8 +408,8 @@ class JsonStorage:
     def __init__(self, config, timestamp, logger):
         self.filename_full = 'venues_full_' + str(timestamp.date()) + '_' + str(os.getpid())
         self.filename_ids = 'venues_ids_' + str(timestamp.date()) + '_' + str(os.getpid())
-        self.writer_full = open(self.filename_full, 'w')
-        self.writer_ids = open(self.filename_ids, 'w')
+        self.writer_full = open(self.filename_full, 'a')
+        self.writer_ids = open(self.filename_ids, 'a')
         self.logger = logger
         self.batch_size = config['batch_size']
         self.counter = 0
@@ -404,7 +440,7 @@ class JsonStorage:
         self.writer_ids.write(json.dumps(row) + '/n')
         self.counter+=1
 
-        if (self.counter >= self.batch_size):
+        if self.counter >= self.batch_size:
             self.flush()
 
     def flush(self):
