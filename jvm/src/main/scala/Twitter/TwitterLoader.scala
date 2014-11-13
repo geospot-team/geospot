@@ -4,6 +4,7 @@ import java.io.{File, FileInputStream}
 import java.util.Date
 
 import com.fasterxml.jackson.core.JsonToken
+import com.fasterxml.jackson.core.JsonFactory
 import de.undercouch.bson4jackson.BsonFactory
 
 /**
@@ -45,9 +46,9 @@ object TwitterLoader extends (String => List[Tweet]) {
   }
 
   private def loadTweetsFromFile(filename: String): Unit = {
-    val bsonFactory = new BsonFactory()
+    val jsonFactory = new JsonFactory()
     val input = new FileInputStream(new File(filename))
-    val parser = bsonFactory.createParser(input)
+    val parser = jsonFactory.createParser(input)
     parser.isExpectedStartArrayToken
 
     def parseGps(): Unit = {
@@ -91,7 +92,7 @@ object TwitterLoader extends (String => List[Tweet]) {
         parser.nextToken()
         fieldName match {
           case "created_at" => {
-            builder.timestamp = parser.getEmbeddedObject.asInstanceOf[Date]
+            builder.timestamp = new Date(parser.getLongValue)
           }
           case "source" => {
             builder.source = parser.getText
