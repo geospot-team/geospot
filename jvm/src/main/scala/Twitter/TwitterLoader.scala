@@ -4,7 +4,7 @@ import java.io.{File, FileInputStream}
 import java.util.Date
 
 import com.fasterxml.jackson.core.JsonToken
-import de.undercouch.bson4jackson.BsonFactory
+import com.fasterxml.jackson.core.JsonFactory
 
 /**
  * User: Vasily
@@ -16,6 +16,7 @@ import de.undercouch.bson4jackson.BsonFactory
 object TwitterLoader extends (String => List[Tweet]) {
 
   class TweetBuilder {
+    var tweetId = 0L
     var lat = 0.0
     var lon = 0.0
     var source = "other"
@@ -23,13 +24,14 @@ object TwitterLoader extends (String => List[Tweet]) {
     var timestamp = new Date()
     var exactGps = false
 
-    def build(): Tweet = Tweet(lat, lon, source, userId, timestamp)
+    def build(): Tweet = Tweet(lat, lon, source, userId, timestamp,tweetId)
 
     def clear(): Unit = {
       lat = 0.0
       lon = 0.0
       source = "other"
       userId = -1L
+      tweetId = 0
       timestamp = new Date()
     }
   }
@@ -45,9 +47,9 @@ object TwitterLoader extends (String => List[Tweet]) {
   }
 
   private def loadTweetsFromFile(filename: String): Unit = {
-    val bsonFactory = new BsonFactory()
+    val jsonFactory = new JsonFactory()
     val input = new FileInputStream(new File(filename))
-    val parser = bsonFactory.createParser(input)
+    val parser = jsonFactory.createParser(input)
     parser.isExpectedStartArrayToken
 
     def parseGps(): Unit = {
@@ -91,10 +93,13 @@ object TwitterLoader extends (String => List[Tweet]) {
         parser.nextToken()
         fieldName match {
           case "created_at" => {
-            builder.timestamp = parser.getEmbeddedObject.asInstanceOf[Date]
+            builder.timestamp = new Date(parser.getLongValue)
           }
           case "source" => {
             builder.source = parser.getText
+          }
+          case "_id"  => {
+            builder.tweetId = parser.getLongValue
           }
           case "user" => {
             parseUser()
