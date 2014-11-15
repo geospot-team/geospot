@@ -20,6 +20,7 @@ import scala.io.Source
 first arg — file with tweets
 second arg — file with grid
 third arg — result file
+then bounding box
  */
 object Timer {
   var startTime = System.currentTimeMillis()
@@ -42,10 +43,18 @@ object CountersCLI extends App {
 
   case class Query(lat: Double, lon: Double, radius: Double)
 
-  case class BoundingBox(minLat: Double, minLon: Double, maxLat: Double, maxLon: Double)
+  case class BoundingBox(minLat: Double, minLon: Double, maxLat: Double, maxLon: Double) {
+    def in(pointLat: Double, pointLon: Double) = pointLat > minLat && pointLon > minLon && pointLat < maxLat && pointLon < maxLon
+  }
+
+  val region = BoundingBox(args(4).toDouble, args(5).toDouble, args(6).toDouble, args(7).toDouble)
 
   Timer.start()
-  val tweets = TwitterLoader(args(0)).toArray.zipWithIndex
+  val tweets = TwitterLoader(args(0)).filter(tweet => {
+    region.in(tweet.lat, tweet.lon)
+  }).toArray.zipWithIndex
+
+
   Timer.stop("read tweets")
   Timer.start()
   val locationsFile = args(1)
@@ -62,17 +71,17 @@ object CountersCLI extends App {
   Timer.start()
 
 
-  val boundingBox = tweets.foldLeft(BoundingBox(Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity))({ case (box, entry) => {
-    val tweet = entry._1
-    BoundingBox(if (box.minLat < tweet.lat) box.minLat else tweet.lat,
-      if (box.minLon < tweet.lon) box.minLat else tweet.lon,
-      if (box.maxLat > tweet.lat) box.maxLat else tweet.lat,
-      if (box.maxLon > tweet.lon) box.maxLon else tweet.lon)
+
+  val boundingBox = queries.foldLeft(region)({ case (box, query: Query) => {
+    BoundingBox(if (box.minLat < query.lat) box.minLat else query.lat,
+      if (box.minLon < query.lon) box.minLon else query.lon,
+      if (box.maxLat > query.lat) box.maxLat else query.lat,
+      if (box.maxLon > query.lon) box.maxLon else query.lon)
   }
   })
 
-  //(double minLat, double minLon, double maxLat, double maxLon, int bins)
-  val geoHashBuilder = new GridGeoHashBuilder(boundingBox.minLat, boundingBox.minLon, boundingBox.maxLat, boundingBox.maxLon, 300)
+  //(double  minLat, double minLon, double maxLat, double maxLon, int bins)
+  val geoHashBuilder = new GridGeoHashBuilder(boundingBox.minLat, boundingBox.minLon, boundingBox.maxLat, boundingBox.maxLon, 200)
   tweets.foreach(entry => {
     val tweet = entry._1
     geoHashBuilder.add(entry._2, tweet.lat, tweet.lon)
@@ -167,7 +176,6 @@ object Timestamps {
     calendar.setTime(date)
     val hours = calendar.get(Calendar.HOUR_OF_DAY)
     6 <= hours && hours < 12
-
   }
   }
   val All = { date: Date => {
