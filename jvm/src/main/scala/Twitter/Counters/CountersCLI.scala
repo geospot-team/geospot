@@ -47,7 +47,7 @@ object CountersCLI extends App {
     def in(pointLat: Double, pointLon: Double) = pointLat > minLat && pointLon > minLon && pointLat < maxLat && pointLon < maxLon
   }
 
-  val region = BoundingBox(args(4).toDouble, args(5).toDouble, args(6).toDouble, args(7).toDouble)
+  val region = BoundingBox(args(3).toDouble, args(4).toDouble, args(5).toDouble, args(6).toDouble)
 
   Timer.start()
   val tweets = TwitterLoader(args(0)).filter(tweet => {
@@ -69,7 +69,6 @@ object CountersCLI extends App {
 
   Timer.stop("read queries")
   Timer.start()
-
 
 
   val boundingBox = queries.foldLeft(region)({ case (box, query: Query) => {
@@ -108,9 +107,10 @@ object CountersCLI extends App {
   val result = queries.par.map({
     case (query: Query) => {
       val tweetsInArea = geoHash.near(query.lat, query.lon, query.radius).map(id => tweets(id.toInt)._1)
-      filters.map({
+      filters.flatMap({
         case (filter) => {
-          tweetsInArea.filter(filter._2).length
+          val filteredTweets = tweetsInArea.filter(filter._2)
+          List(filteredTweets.length, filteredTweets.foldLeft(Set[Long]())(_ + _.userId).size)
         }
       })
     }
@@ -118,7 +118,9 @@ object CountersCLI extends App {
   Timer.stop("proceeded queries")
   Timer.start()
   val writer = new BufferedWriter(new FileWriter(args(2)))
-  writer.write(filters.map(_._1).mkString("\t") + "\n")
+  writer.write(filters.map(filter => {
+    filter._1 + "\tunique_" + filter._1
+  }).mkString("\t") + "\n")
   for (entry <- result) {
     writer.write(entry.mkString("\t") + "\n")
   }
