@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 
 FORMATTER = logging.Formatter("%(levelname)s: %(asctime)s - %(name)s - %(process)s - %(message)s")
 
+
 class SubProcessLogHandler(logging.Handler):
     """handler used by subprocesses
 
@@ -25,7 +26,6 @@ class SubProcessLogHandler(logging.Handler):
 
 
 class EmailLogHandler(logging.Handler):
-
     def __init__(self, gmail_login, password, email_from, email_to):
         logging.Handler.__init__(self)
         self.gmail_login = gmail_login
@@ -58,7 +58,7 @@ class LogQueueReader(threading.Thread):
 
     """
 
-    def __init__(self, queue, handlers = None):
+    def __init__(self, queue, handlers=None):
         threading.Thread.__init__(self)
         self.queue = queue
         self.daemon = True

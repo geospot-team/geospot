@@ -1,8 +1,9 @@
 import datetime
-from time import sleep
 
-last_connect_time = datetime.datetime.utcnow()
-sleep(10)
-diff = datetime.datetime.utcnow() - last_connect_time
-res = diff < datetime.timedelta(0, 9)
-print(diff, res)
+current_day = datetime.datetime.now()
+current_week_monday = current_day - datetime.timedelta(days=current_day.weekday())
+print(current_week_monday.weekday() - 1)
+def get_week_suffix():
+    current_day = datetime.datetime.now()
+    current_week_monday = current_day - datetime.timedelta(days=current_day.weekday())
+    return current_week_monday.strftime("%Y-%m-%d")
