@@ -44,14 +44,14 @@ object CountersCLI extends App {
   case class Query(lat: Double, lon: Double, radius: Double)
 
   case class BoundingBox(minLat: Double, minLon: Double, maxLat: Double, maxLon: Double) {
-    def in(pointLat: Double, pointLon: Double) = pointLat > minLat && pointLon > minLon && pointLat < maxLat && pointLon < maxLon
+    def contains(pointLat: Double, pointLon: Double) = pointLat > minLat && pointLon > minLon && pointLat < maxLat && pointLon < maxLon
   }
 
   val region = BoundingBox(args(3).toDouble, args(4).toDouble, args(5).toDouble, args(6).toDouble)
 
   Timer.start()
   val tweets = TwitterLoader(args(0)).filter(tweet => {
-    region.in(tweet.lat, tweet.lon)
+    region.contains(tweet.lat, tweet.lon)
   }).toArray.zipWithIndex
 
 
@@ -145,7 +145,6 @@ class SourceFilter(val sources: Set[String]) extends (Tweet => Boolean) {
 
 object SourceFilter {
   def apply(sources: Set[String]) = new SourceFilter(sources)
-
 }
 
 object Timestamps {
