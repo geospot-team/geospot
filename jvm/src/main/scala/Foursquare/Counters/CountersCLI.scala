@@ -82,6 +82,19 @@ object CountersCLI extends App {
 
   Timer.stop("Build hash")
 
+  val categories = List(
+    "art and entertainment" -> "4d4b7104d754a06370d81259",
+    "movie theatre" -> "4bf58dd8d48988d17f941735",
+    "museum" -> "4bf58dd8d48988d181941735",
+    "stadium" -> "4bf58dd8d48988d184941735"
+
+  )
+
+  val filters: List[(String, FoursquareObject => Boolean)] = for (catId <- categories) yield (catId._1, { fsqObj: FoursquareObject => {
+    fsqObj.categories.exists(category => category.contentEquals(catId._2))
+  }
+  })
+
   Timer.start()
 
   val result = queries.par.map({
@@ -90,14 +103,22 @@ object CountersCLI extends App {
       val objCount = fsqInArea.size
       val sumAge = fsqInArea.foldLeft[Long](0)((prevSum: Long, obj: FoursquareObject) => prevSum + (obj.timestamp.getTime() - obj.createdAt.getTime())/1000)
       val mean: Double  = if (objCount > 0) sumAge/(objCount*3600*24) else 0
-      (query.lat + " "+query.lon, mean)
+      val categoryCounts = filters.map({
+        case(catFilter) => {
+          (catFilter._1, fsqInArea.filter(catFilter._2).size)
+        }
+      })
+      (query.lat + " "+query.lon, "mean" -> mean :: categoryCounts)
     }
   })
   Timer.stop("proceeded queries")
   Timer.start()
   val writer = new BufferedWriter(new FileWriter(args(2)))
   for (entry <- result) {
-    writer.write(entry._1+"\t"+entry._2+ "\n")
+    writer.write(
+      entry._1
+        +"\t"+entry._2.map(f=>f._1+"="+f._2).mkString("\t")
+        + "\n")
   }
   writer.flush()
   writer.close()
