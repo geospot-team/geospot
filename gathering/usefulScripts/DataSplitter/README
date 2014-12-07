@@ -1,0 +1,10 @@
+Запускается в две команды:
+
+cat file_with_objects.json | python twitter_split_objects.py
+gzip 2014-*
+
+Скрипт twitter_split_objects.py создает файлы с именами формата yyyy-MM-dd. Если в текущей директории уже есть файл с таким именем, то скрипт просто допишет в него, т.е ВНИМАНИЕ! могут возникнуть дубликаты.
+
+Чтобы получить json из mongo-dump файлов:
+1. Запустить mongod --dbpath ${data_db}
+2. Запустить mongodump
