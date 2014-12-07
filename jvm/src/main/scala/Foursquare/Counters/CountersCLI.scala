@@ -87,21 +87,20 @@ object CountersCLI extends App {
   val result = queries.par.map({
     case (query: Query) => {
       val fsqInArea = geoHash.near(query.lat, query.lon, query.radius).map(id => fsqObjects(id.toInt)._1)
-      val sumAge = fsqInArea.foldLeft[Long](0)((prevSum: Long, obj: FoursquareObject) => prevSum + (obj.timestamp.getTime() - obj.createdAt.getTime()))
-      sumAge/fsqInArea.size
+      val objCount = fsqInArea.size
+      val sumAge = fsqInArea.foldLeft[Long](0)((prevSum: Long, obj: FoursquareObject) => prevSum + (obj.timestamp.getTime() - obj.createdAt.getTime())/1000)
+      val mean: Double  = if (objCount > 0) sumAge/(objCount*3600*24) else 0
+      (query.lat + " "+query.lon, mean)
     }
   })
   Timer.stop("proceeded queries")
-//  Timer.start()
-//  val writer = new BufferedWriter(new FileWriter(args(2)))
-//  writer.write(filters.map(filter => {
-//    filter._1 + "\tunique_" + filter._1
-//  }).mkString("\t") + "\n")
-//  for (entry <- result) {
-//    writer.write(entry.mkString("\t") + "\n")
-//  }
-//  writer.flush()
-//  writer.close()
-//  Timer.stop("Wrote to file")
+  Timer.start()
+  val writer = new BufferedWriter(new FileWriter(args(2)))
+  for (entry <- result) {
+    writer.write(entry._1+"\t"+entry._2+ "\n")
+  }
+  writer.flush()
+  writer.close()
+  Timer.stop("Wrote to file")
 }
 

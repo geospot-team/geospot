@@ -51,7 +51,7 @@ object FoursquareLoader extends (String => List[FoursquareObject]) {
         fieldName match {
           case "createdAt" => {
             parser.nextToken()
-            builder.createdAt = new Date(parser.getLongValue)
+            builder.createdAt = new Date(parser.getLongValue*1000)
           }
           case "_categoryIds" => {
             parser.nextToken()
@@ -75,7 +75,7 @@ object FoursquareLoader extends (String => List[FoursquareObject]) {
           }
           case "_timestamp" => {
             parser.nextToken()
-            builder.timestamp = new Date (math round parser.getDoubleValue)
+            builder.timestamp = new Date ((math round parser.getDoubleValue)*1000)
           }
           case _ => {
             parser.skipChildren()
