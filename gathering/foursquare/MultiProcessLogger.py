@@ -89,8 +89,8 @@ class LogQueueReader(threading.Thread):
                 traceback.print_exc(file=sys.stderr)
 
     def get_logger(self, name):
-        if name in self.loggers:
-            return self.loggers[name]
+        #if name in self.loggers:
+        #    return self.loggers[name]
         logger = logging.getLogger(name)
         self.loggers[name] = logger
         for handler in logger.handlers:
@@ -106,7 +106,7 @@ def get_logger(name=None, queue=None):
     if queue:
         for handler in logger.handlers:
             # just a check for my sanity
-            assert not isinstance(handler, SubProcessLogHandler)
+            #assert not isinstance(handler, SubProcessLogHandler)
             logger.removeHandler(handler)
         # add the handler
         handler = SubProcessLogHandler(queue)

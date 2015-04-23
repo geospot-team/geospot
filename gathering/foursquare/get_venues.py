@@ -158,5 +158,10 @@ def get_venues(config, timestamp, logger_queue):
 if __name__ == "__main__":
     init_file = sys.argv[1]  # 'init.json'
     config = json.loads(open(init_file).read())
+    timestamp = datetime.datetime.today()
+    if len(sys.argv) > 2:
+        timestamp = eval(sys.argv[2])
+    if len(sys.argv) > 3:
+        config['mongodb']['write_full'] = sys.argv[3] == "True"
     logger_queue = Common.init_threaded_logger(config)
-    get_venues(config, datetime.datetime.today(), logger_queue)
+    get_venues(config, timestamp, logger_queue)

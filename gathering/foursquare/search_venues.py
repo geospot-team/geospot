@@ -134,5 +134,8 @@ def search_venues(config, timestamp, logger_queue):
 if __name__ == "__main__":
     init_file = sys.argv[1]
     config = json.loads(open(init_file).read())
+    timestamp = datetime.datetime.today()
+    if len(sys.argv) > 2:
+        timestamp = eval(sys.argv[2])
     logger_queue = Common.init_threaded_logger(config)
-    search_venues(config, datetime.datetime.today(), logger_queue)
+    search_venues(config, timestamp, logger_queue)

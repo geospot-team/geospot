@@ -308,7 +308,7 @@ class MongodbStorage:
                             doc_or_docs=insert_items, continue_on_error=True)
                         self.logger.info('Written ' + str(len(inserted_ids)) + ' new time_series')
                     except DuplicateKeyError as e:
-                        self.logger.warn('DuplicateKeyError: {}'.format(e.details))
+                        self.logger.info('DuplicateKeyError: {}'.format(e.details)) #too many in first day
                 bulk = self.collection_time_series.initialize_unordered_bulk_op()
                 for item in self.time_series:
                     id = ObjectId(item['id'])
@@ -357,7 +357,7 @@ class MongodbStorage:
                     result = None
                     break
             if result is not None:
-                if day:
+                if day is not None:
                     field = field + '.' + str(day)
                 d[field] = result
                 # else:
